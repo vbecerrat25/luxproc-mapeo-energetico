@@ -1,0 +1,6 @@
+{
+  "name": "E-DIAGNOSIS - Plataforma Inteligente de Diagnóstico Eléctrico y Energético",
+  "description": "Plataforma profesional de diagnóstico eléctrico, energético, seguridad, protecciones, puesta a tierra, conductores e iluminación para Perú con IA interpretativa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

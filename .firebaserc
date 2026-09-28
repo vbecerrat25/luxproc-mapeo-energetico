@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "luxproc"
+  },
+  "targets": {
+    "luxproc": {
+      "hosting": {
+        "sitio-mapeo": [
+          "luxproc-mapeo-energetico"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

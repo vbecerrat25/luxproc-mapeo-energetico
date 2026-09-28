@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil de usuario e ingeniero autenticado con Google",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "ID único de usuario Firebase/Google"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Correo electrónico de Google del usuario"
+        },
+        "name": {
+          "type": "string",
+          "description": "Nombre completo del ingeniero según Google"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["INGENIERO_CIP", "AUDITOR_ENERGETICO", "CLIENTE"],
+          "description": "Rol asignado dentro del sistema"
+        },
+        "cipNumber": {
+          "type": "string",
+          "description": "Número de colegiatura del Colegio de Ingenieros del Perú"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "URL de la foto de perfil proveniente de Google"
+        },
+        "verifiedByGoogle": {
+          "type": "boolean",
+          "description": "Estado de verificación oficial vía Google Identity"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Fecha ISO de creación de cuenta"
+        }
+      },
+      "required": ["uid", "email", "name"]
+    },
+    "DiagnosticProject": {
+      "title": "DiagnosticProject",
+      "description": "Proyecto pericial o auditoría eléctrica",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identificador único del diagnóstico"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID del ingeniero titular"
+        },
+        "title": {
+          "type": "string",
+          "description": "Título o razón social de la instalación"
+        },
+        "installationType": {
+          "type": "string",
+          "description": "Tipo de instalación evaluada"
+        },
+        "cneCompliant": {
+          "type": "boolean",
+          "description": "Cumplimiento normativo del Código Nacional de Electricidad"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Fecha ISO de última actualización"
+        }
+      },
+      "required": ["id", "ownerId", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Perfiles de usuarios autenticados con Google"
+    },
+    "/diagnostics/{diagnosticId}": {
+      "schema": "DiagnosticProject",
+      "description": "Auditorías y diagnósticos eléctricos asociados al usuario"
+    }
+  }
+}
