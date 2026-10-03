@@ -25,11 +25,15 @@ import {
   Layers,
   Filter,
   CheckSquare,
-  Square
+  Square,
+  Lock,
+  ExternalLink
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { exportDiagnosticToExcel } from '../../utils/excelExporter';
+import { useLanguage } from '../../context/LanguageContext';
+import { lookupCIPRecord } from '../../utils/cipValidator';
 import { 
   ResponsiveContainer, 
   PieChart, 
@@ -65,12 +69,35 @@ export const ReportTab: React.FC = () => {
     efficiencyEvaluation,
     computedEquipment,
     computedSavingsOpportunities,
-    computedBom
+    computedBom,
+    setActiveTab,
+    updateGeneralData
   } = useDiagnostic();
+  const { t, language } = useLanguage();
+
+  // Helper de traducción dinámico para todo el informe técnico oficial
+  const rt = (esText: string, enText: string, ptText?: string): string => {
+    if (language === 'en') return enText;
+    if (language === 'pt') return ptText || enText;
+    return esText;
+  };
 
   const { generalData, tariff } = diagnostic;
   const reportContainerRef = useRef<HTMLDivElement>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Validación Estricta de Habilitación y Registro CIP al 100%
+  const currentCipNumber = (currentUser?.cipNumber || generalData.cipNumber || '278034').trim();
+  const cipRecord = lookupCIPRecord(
+    currentCipNumber,
+    currentUser?.name || generalData.responsibleEngineer,
+    currentUser?.specialty || generalData.specialty,
+    currentUser?.regionalCouncil || generalData.professionalCollege,
+    currentUser?.chapter
+  );
+  const isCipNotFound = !currentCipNumber || !cipRecord;
+  const isCipNotHabilitado = Boolean(cipRecord && cipRecord.status === 'NO_HABILITADO');
+  const isReportBlocked = isCipNotFound || isCipNotHabilitado;
 
   // Configuración de módulos seleccionables para el informe
   const [sections, setSections] = useState<ReportSectionsConfig>({
@@ -370,52 +397,153 @@ export const ReportTab: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black text-slate-900 font-display">
-              Informe Técnico Certificado CIP
+              {rt('Informe Técnico Certificado CIP', 'Official CIP Certified Technical Report', 'Relatório Técnico Certificado CIP')}
             </h2>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-              CNE / RNE Oficial
+              {rt('CNE / RNE Oficial', 'Official Code / Standard', 'CNE / RNE Oficial')}
             </span>
           </div>
           <p className="text-xs text-slate-500">
-            Descargas autorizadas exclusivamente en formato PDF e información consolidada en Excel (.xlsx)
+            {rt(
+              'Descargas autorizadas exclusivamente en formato PDF e información consolidada en Excel (.xlsx)',
+              'Authorized downloads exclusively in PDF format and consolidated data in Excel (.xlsx)',
+              'Downloads autorizados exclusivamente em formato PDF e dados consolidados em Excel (.xlsx)'
+            )}
           </p>
         </div>
 
-        {/* Solo formato PDF o Excel (.xlsx) */}
+        {/* Solo formato PDF o Excel (.xlsx) con bloqueo normativo */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleDownloadPdf}
-            disabled={isGeneratingPdf}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 shadow-md transition-all cursor-pointer disabled:opacity-50"
-            title="Descargar Informe Técnico en formato PDF oficial"
+            disabled={isGeneratingPdf || isReportBlocked}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all shadow-md ${
+              isReportBlocked
+                ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer shadow-indigo-600/20'
+            }`}
+            title={isReportBlocked ? rt('Bloqueado: Requiere CIP Colegiado y Habilitado', 'Blocked: Requires active registered CIP', 'Bloqueado: Requer CIP registrado e habilitado') : rt('Descargar Informe Técnico en formato PDF oficial', 'Download official technical PDF report', 'Baixar relatório técnico em PDF')}
           >
-            {isGeneratingPdf ? (
+            {isReportBlocked ? (
+              <Lock size={15} className="text-slate-500" />
+            ) : isGeneratingPdf ? (
               <Loader2 size={16} className="animate-spin text-white" />
             ) : (
               <Download size={16} className="text-white" />
             )}
-            <span>{isGeneratingPdf ? 'Generando PDF...' : 'Descargar Informe PDF'}</span>
+            <span>
+              {isGeneratingPdf 
+                ? rt('Generando PDF...', 'Generating PDF...', 'Gerando PDF...') 
+                : rt('Descargar Informe PDF', 'Download PDF Report', 'Baixar Relatório PDF')}
+            </span>
           </button>
 
           <button
             onClick={handleDownloadExcel}
-            className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 shadow-xs transition-all cursor-pointer"
-            title="Descargar todos los datos técnicos en formato Excel (.xlsx)"
+            disabled={isReportBlocked}
+            className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-bold transition-all ${
+              isReportBlocked
+                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 shadow-xs cursor-pointer'
+            }`}
+            title={isReportBlocked ? rt('Bloqueado: Requiere CIP Colegiado y Habilitado', 'Blocked: Requires active registered CIP', 'Bloqueado: Requer CIP ativo') : rt('Descargar todos los datos técnicos en formato Excel (.xlsx)', 'Download all technical data in Excel (.xlsx)', 'Baixar dados técnicos em Excel (.xlsx)')}
           >
-            <FileSpreadsheet size={16} className="text-emerald-700" />
-            <span>Descargar Excel (.xlsx)</span>
+            {isReportBlocked ? <Lock size={15} className="text-slate-400" /> : <FileSpreadsheet size={16} className="text-emerald-700" />}
+            <span>{rt('Descargar Excel (.xlsx)', 'Download Excel (.xlsx)', 'Baixar Excel (.xlsx)')}</span>
           </button>
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 shadow-md transition-all cursor-pointer"
-            title="Imprimir o exportar vía navegador"
+            disabled={isReportBlocked}
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all ${
+              isReportBlocked
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                : 'bg-slate-900 text-white hover:bg-slate-800 shadow-md cursor-pointer'
+            }`}
+            title={isReportBlocked ? rt('Bloqueado: Requiere CIP Colegiado y Habilitado', 'Blocked: Requires active registered CIP', 'Bloqueado: Requer CIP ativo') : rt('Imprimir o exportar vía navegador', 'Print or export via browser', 'Imprimir ou exportar via navegador')}
           >
-            <Printer size={16} className="text-amber-400" />
-            <span className="hidden sm:inline">Imprimir</span>
+            {isReportBlocked ? <Lock size={15} className="text-slate-400" /> : <Printer size={16} className="text-amber-400" />}
+            <span className="hidden sm:inline">{rt('Imprimir', 'Print', 'Imprimir')}</span>
           </button>
         </div>
       </div>
+
+      {isReportBlocked ? (
+        /* ========================================================================= */
+        /* PANTALLA OFICIAL DE BLOQUEO CIP (NO ENCONTRADO O NO HABILITADO)           */
+        /* ========================================================================= */
+        <div className="space-y-6">
+          {isCipNotFound ? (
+            <div className="rounded-3xl border-2 border-rose-300 bg-gradient-to-b from-rose-50/90 via-white to-rose-50/50 p-6 sm:p-10 shadow-lg text-center space-y-5">
+              <div className="w-16 h-16 rounded-2xl bg-rose-100 border border-rose-300 text-rose-600 mx-auto flex items-center justify-center shadow-xs">
+                <ShieldAlert className="w-8 h-8 stroke-[2.5]" />
+              </div>
+
+              <div className="max-w-xl mx-auto space-y-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 border border-rose-300 text-rose-800 text-[11px] font-black uppercase tracking-wider font-mono">
+                  <Lock className="w-3.5 h-3.5 text-rose-700" />
+                  <span>Emisión & Descarga Bloqueadas · Ley N° 28858</span>
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 font-display">
+                  Número de Registro CIP No Encontrado en el Padrón Nacional
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  El número de CIP ingresado (<strong className="font-mono text-rose-700">{currentCipNumber || 'Vacío / No Especificado'}</strong>) no coincide con ningún registro certificado en el Colegio de Ingenieros del Perú.
+                </p>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Por mandato expreso del Estatuto del CIP y la Ley N° 28858 del Ejercicio Profesional de la Ingeniería, es indispensable contar con colegiatura válida y verificada para observar y emitir informes periciales oficiales.
+                </p>
+              </div>
+
+              {/* Botón de acción para ir a Datos Generales */}
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('general')}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Ingresar / Modificar CIP en Datos Generales</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl border-2 border-amber-400 bg-gradient-to-b from-amber-50/90 via-white to-amber-50/50 p-6 sm:p-10 shadow-lg text-center space-y-5">
+              <div className="w-16 h-16 rounded-2xl bg-amber-100 border border-amber-300 text-amber-700 mx-auto flex items-center justify-center shadow-xs">
+                <AlertTriangle className="w-8 h-8 stroke-[2.5]" />
+              </div>
+
+              <div className="max-w-xl mx-auto space-y-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-black uppercase tracking-wider font-mono">
+                  <Lock className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Colegiatura Inhabilitada · Emisión Restringida</span>
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 font-display">
+                  Colegiado NO HABILITADO ante el Colegio de Ingenieros del Perú
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">
+                  El profesional <strong>{cipRecord?.fullName}</strong> (<span className="font-mono font-bold text-amber-900">CIP N° {cipRecord?.cipNumber}</span> - {cipRecord?.regionalCouncil}) figura con estado <strong className="text-rose-700 uppercase">NO HABILITADO</strong> en el padrón oficial del CIP.
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  El artículo 4° de la Ley N° 28858 y las exigencias de INDECI / ITSE prohíben a profesionales no habilitados la emisión, refrendo o firma de informes técnicos periciales. El informe oficial no puede ser observado ni descargado hasta regularizar la condición de colegiatura.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('general')}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Cambiar a Ingeniero Colegiado Habilitado</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
 
       {/* Modular Section Selector Panel (Filtro Modular de Secciones) */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs print:hidden space-y-3">
@@ -600,18 +728,32 @@ export const ReportTab: React.FC = () => {
         <div className="border-b-2 border-slate-900 pb-5 text-center space-y-2">
           <div className="flex items-center justify-between border-b border-slate-200 pb-2 font-sans text-xs text-slate-500">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-800">COLEGIO DE INGENIEROS DEL PERÚ (CIP)</span>
+              <span className="font-bold text-slate-800">
+                {rt('COLEGIO DE INGENIEROS DEL PERÚ (CIP)', 'COLLEGE OF ENGINEERS OF PERU (CIP)', 'COLÉGIO DE ENGENHEIROS DO PERU (CIP)')}
+              </span>
             </div>
-            <span className="font-mono font-bold text-amber-800">EXPEDIENTE: {generalData.diagnosticCode || 'E-DIAG-2026-CIP'}</span>
-            <span>FECHA: {generalData.date || new Date().toLocaleDateString('es-PE')}</span>
+            <span className="font-mono font-bold text-amber-800">
+              {rt('EXPEDIENTE:', 'FILE NO.:', 'PROCESSO:')} {generalData.diagnosticCode || 'E-DIAG-2026-CIP'}
+            </span>
+            <span>
+              {rt('FECHA:', 'DATE:', 'DATA:')} {generalData.date || new Date().toLocaleDateString(language === 'en' ? 'en-US' : language === 'pt' ? 'pt-BR' : 'es-PE')}
+            </span>
           </div>
 
           <div className="pt-2">
             <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase text-slate-950 font-display">
-              INFORME TÉCNICO PERICIAL DE DIAGNÓSTICO ELÉCTRICO Y ENERGÉTICO
+              {rt(
+                'INFORME TÉCNICO PERICIAL DE DIAGNÓSTICO ELÉCTRICO Y ENERGÉTICO',
+                'TECHNICAL EXPERT REPORT ON ELECTRICAL & ENERGY DIAGNOSIS',
+                'RELATÓRIO TÉCNICO PERICIAL DE DIAGNÓSTICO ELÉTRICO E ENERGÉTICO'
+              )}
             </h1>
             <p className="text-xs italic text-slate-600 font-sans mt-1">
-              Conforme al Código Nacional de Electricidad (CNE Utilización 2006), RNE EM.010, NTP 370.053 y Protocolo ITSE INDECI
+              {rt(
+                'Conforme al Código Nacional de Electricidad (CNE Utilización 2006), RNE EM.010, NTP 370.053 y Protocolo ITSE INDECI',
+                'In compliance with National Electrical Code (CNE / NEC), Building Code EM.010, NTP 370.053 and ITSE Protocol',
+                'Em conformidade com o Código Elétrico Nacional, Regulamento RNE EM.010, NTP 370.053 e Protocolo ITSE'
+              )}
             </p>
           </div>
         </div>
@@ -620,21 +762,21 @@ export const ReportTab: React.FC = () => {
         {sections.generalData && (
           <div className="space-y-3">
             <div className="border-b border-slate-300 pb-1 font-sans font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>1. DATOS GENERALES DEL PREDIO Y CARACTERÍSTICAS DEL SUMINISTRO</span>
+              <span>{rt('1. DATOS GENERALES DEL PREDIO Y CARACTERÍSTICAS DEL SUMINISTRO', '1. GENERAL SITE DATA & POWER SUPPLY SPECIFICATIONS', '1. DADOS GERAIS DO IMÓVEL E ESPECIFICAÇÕES DO FORNECIMENTO')}</span>
               <span className="text-xs font-mono text-slate-500">{generalData.installationType}</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs font-sans">
-              <div><strong>Razón Social / Titular:</strong> {generalData.companyName || generalData.clientName || 'N/A'}</div>
-              <div><strong>RUC / DNI:</strong> <span className="font-mono">{generalData.ruc || 'N/A'}</span></div>
-              <div><strong>Dirección Fiscal / Ubicación:</strong> {generalData.address}, {generalData.district}, {generalData.department}</div>
-              <div><strong>Actividad Económica:</strong> {generalData.economicActivity || generalData.installationType}</div>
-              <div><strong>Área Techada:</strong> {generalData.builtAreaM2} m² ({generalData.workerCount} personas en planta)</div>
-              <div><strong>Ingeniero Colegiado Responsable:</strong> {currentUser?.name || generalData.responsibleEngineer || 'Ing. Fernando Benites Torres'}</div>
-              <div><strong>Colegiatura CIP:</strong> <span className="font-mono font-bold text-amber-900">CIP N° {currentUser?.cipNumber || generalData.cipNumber || '178452'}</span></div>
-              <div><strong>Especialidad:</strong> <span className="font-medium text-slate-900">{currentUser?.specialty || generalData.specialty || 'Ingeniero Mecánico Electricista'}</span></div>
-              <div><strong>Colegio Profesional:</strong> <span className="font-medium text-slate-900">{currentUser?.professionalCollege || generalData.professionalCollege || 'Colegio de Ingenieros del Perú (CIP)'}</span></div>
-              <div><strong>Distribuidora y Tarifa:</strong> {tariff.distributor} ({tariff.tariffCode} - {tariff.supplyVoltage}V {tariff.phases})</div>
+              <div><strong>{rt('Razón Social / Titular:', 'Company / Owner Name:', 'Razão Social / Titular:')}</strong> {generalData.companyName || generalData.clientName || 'N/A'}</div>
+              <div><strong>{rt('RUC / DNI:', 'Tax ID / DNI:', 'CNPJ / CPF / RUC:')}</strong> <span className="font-mono">{generalData.ruc || 'N/A'}</span></div>
+              <div><strong>{rt('Dirección Fiscal / Ubicación:', 'Fiscal Address / Location:', 'Endereço Fiscal / Localização:')}</strong> {generalData.address}, {generalData.district}, {generalData.department}</div>
+              <div><strong>{rt('Actividad Económica:', 'Economic Activity:', 'Atividade Econômica:')}</strong> {generalData.economicActivity || generalData.installationType}</div>
+              <div><strong>{rt('Área Techada:', 'Built Area:', 'Área Coberta:')}</strong> {generalData.builtAreaM2} m² ({generalData.workerCount} {rt('personas en planta', 'occupants in facility', 'pessoas na planta')})</div>
+              <div><strong>{rt('Ingeniero Colegiado Responsable:', 'Responsible Collegiate Engineer:', 'Engenheiro Responsável Registrado:')}</strong> {currentUser?.name || generalData.responsibleEngineer || 'Ing. Víctor Fernando Becerra Terán'}</div>
+              <div><strong>{rt('Colegiatura CIP:', 'CIP Registration:', 'Registro Profissional CIP:')}</strong> <span className="font-mono font-bold text-amber-900">CIP N° {currentUser?.cipNumber || generalData.cipNumber || '278034'}</span></div>
+              <div><strong>{rt('Especialidad:', 'Engineering Specialty:', 'Especialidade de Engenharia:')}</strong> <span className="font-medium text-slate-900">{currentUser?.specialty || generalData.specialty || 'Ingeniero Electrónico'}</span></div>
+              <div><strong>{rt('Colegio Profesional:', 'Professional Engineering Board:', 'Conselho Profissional:')}</strong> <span className="font-medium text-slate-900">{currentUser?.professionalCollege || generalData.professionalCollege || 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)'}</span></div>
+              <div><strong>{rt('Distribuidora y Tarifa:', 'Utility & Tariff Code:', 'Distribuidora e Tarifa:')}</strong> {tariff.distributor} ({tariff.tariffCode} - {tariff.supplyVoltage}V {tariff.phases})</div>
             </div>
           </div>
         )}
@@ -643,14 +785,18 @@ export const ReportTab: React.FC = () => {
         {sections.balanceCharts && (
           <div className="space-y-4 font-sans">
             <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>2. BALANCE ENERGÉTICO: CONSUMO PAGADO EN RECIBOS VS CENSO DE EQUIPOS</span>
+              <span>{rt('2. BALANCE ENERGÉTICO: CONSUMO PAGADO EN RECIBOS VS CENSO DE EQUIPOS', '2. ENERGY BALANCE: BILLED UTILITY CONSUMPTION VS EQUIPMENT SURVEY', '2. BALANÇO ENERGÉTICO: CONSUMO FATURADO EM CONTAS VS CENSO DE CARGAS')}</span>
               <span className="text-xs font-mono font-bold text-indigo-700">
-                DISCREPANCIA: {receiptComparison.differencePercent}%
+                {rt('DISCREPANCIA:', 'DISCREPANCY:', 'DISCREPÂNCIA:')} {receiptComparison.differencePercent}%
               </span>
             </div>
 
             <p className="text-xs text-slate-700 leading-relaxed">
-              Comparación técnica entre la energía facturada y pagada por la empresa concesionaria (promedio histórico de recibos) versus el consumo total modelado mediante el censo directo de cargas y maquinaria:
+              {rt(
+                'Comparación técnica entre la energía facturada y pagada por la empresa concesionaria (promedio histórico de recibos) versus el consumo total modelado mediante el censo directo de cargas y maquinaria:',
+                'Technical comparison between invoiced utility energy (historical billing average) versus total energy consumption modeled via direct equipment survey:',
+                'Comparação técnica entre a energia faturada pela concessionária versus o consumo total modelado por censo de cargas e máquinas:'
+              )}
             </p>
 
             {/* Visual Comparison Graph */}
@@ -659,14 +805,14 @@ export const ReportTab: React.FC = () => {
               {/* Graphic Bar Display */}
               <div className="space-y-3">
                 <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                  <span>Energía Mensual (kWh/mes)</span>
-                  <span className="text-[11px] text-slate-500">Comparativa Directa</span>
+                  <span>{rt('Energía Mensual (kWh/mes)', 'Monthly Energy (kWh/month)', 'Energia Mensal (kWh/mês)')}</span>
+                  <span className="text-[11px] text-slate-500">{rt('Comparativa Directa', 'Direct Comparison', 'Comparativo Direto')}</span>
                 </div>
 
                 {/* Bar 1: Pagado en Recibos */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
-                    <span className="font-semibold text-slate-700">Consumo Pagado (Recibos Distribuidora):</span>
+                    <span className="font-semibold text-slate-700">{rt('Consumo Pagado (Recibos Distribuidora):', 'Billed Consumption (Utility Invoices):', 'Consumo Faturado (Contas Distribuidora):')}</span>
                     <span className="font-mono font-bold text-slate-900">{receiptsStats.averageMonthlyKwh.toLocaleString()} kWh</span>
                   </div>
                   <div className="w-full bg-slate-200 h-6 rounded-lg overflow-hidden flex">
@@ -682,7 +828,7 @@ export const ReportTab: React.FC = () => {
                 {/* Bar 2: Censado en Equipos */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
-                    <span className="font-semibold text-slate-700">Consumo Estimado (Censo de Cargas):</span>
+                    <span className="font-semibold text-slate-700">{rt('Consumo Estimado (Censo de Cargas):', 'Estimated Consumption (Equipment Census):', 'Consumo Estimado (Censo de Cargas):')}</span>
                     <span className="font-mono font-bold text-slate-900">{equipmentSummary.totalMonthlyKwh.toLocaleString()} kWh</span>
                   </div>
                   <div className="w-full bg-slate-200 h-6 rounded-lg overflow-hidden flex">
@@ -698,11 +844,11 @@ export const ReportTab: React.FC = () => {
                 <div className="flex items-center gap-4 text-[11px] text-slate-600 pt-1">
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 bg-indigo-600 rounded" />
-                    <span>Facturado en Recibo</span>
+                    <span>{rt('Facturado en Recibo', 'Billed in Invoices', 'Faturado em Contas')}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 bg-amber-500 rounded" />
-                    <span>Modelado en Equipos</span>
+                    <span>{rt('Modelado en Equipos', 'Modeled in Equipment', 'Modelado em Equipamentos')}</span>
                   </div>
                 </div>
               </div>
@@ -712,16 +858,20 @@ export const ReportTab: React.FC = () => {
                 <div>
                   <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
                     <Activity className="h-4 w-4 text-indigo-600" />
-                    <span>Diagnóstico de Correlación Energética:</span>
+                    <span>{rt('Diagnóstico de Correlación Energética:', 'Energy Correlation Assessment:', 'Diagnóstico de Correlação Energética:')}</span>
                   </div>
                   <p className="text-slate-600 text-[11px] leading-relaxed">
                     {Math.abs(receiptComparison.differencePercent) <= 15 ? (
                       <span className="text-emerald-800 font-semibold">
-                        ✓ Excelente calibración (desviación de {receiptComparison.differencePercent}%). El censo de cargas representa con alta fidelidad el perfil de consumo operativo real del predio.
+                        {rt(
+                          `✓ Excelente calibración (desviación de ${receiptComparison.differencePercent}%). El censo de cargas representa con alta fidelidad el perfil de consumo operativo real del predio.`,
+                          `✓ Excellent calibration (${receiptComparison.differencePercent}% discrepancy). The equipment load survey accurately captures the real facility operating profile.`,
+                          `✓ Excelente calibração (desvio de ${receiptComparison.differencePercent}%). O censo de cargas representa fielmente o consumo real da planta.`
+                        )}
                       </span>
                     ) : (
                       <span className="text-amber-800 font-semibold">
-                        ⚠️ Discrepancia del {receiptComparison.differencePercent}%. {receiptComparison.statusDescription}
+                        ⚠️ {rt(`Discrepancia del ${receiptComparison.differencePercent}%. ${receiptComparison.statusDescription}`, `Discrepancy of ${receiptComparison.differencePercent}%. Audit deviation noted.`, `Discrepância de ${receiptComparison.differencePercent}%. Desvio auditado.`)}
                       </span>
                     )}
                   </p>
@@ -729,13 +879,13 @@ export const ReportTab: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px]">
                   <div>
-                    <span className="text-slate-500 block">Diferencia Mensual:</span>
+                    <span className="text-slate-500 block">{rt('Diferencia Mensual:', 'Monthly Discrepancy:', 'Diferença Mensal:')}</span>
                     <span className="font-mono font-bold text-slate-900">
                       {Math.abs(receiptComparison.differenceKwh).toLocaleString()} kWh/mes
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Impacto Económico:</span>
+                    <span className="text-slate-500 block">{rt('Impacto Económico:', 'Financial Impact:', 'Impacto Econômico:')}</span>
                     <span className="font-mono font-bold text-slate-900">
                       S/. {Math.abs(receiptComparison.differenceSoles).toFixed(0)}/mes
                     </span>
@@ -751,27 +901,31 @@ export const ReportTab: React.FC = () => {
         {sections.topEquipmentRanking && (
           <div className="space-y-5 font-sans">
             <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>3. FACTOR DE CARGA, SISTEMA ELÉCTRICO Y EXCESO DE PAGO POR MAQUINARIA</span>
+              <span>{rt('3. FACTOR DE CARGA, SISTEMA ELÉCTRICO Y EXCESO DE PAGO POR MAQUINARIA', '3. LOAD FACTOR, ELECTRICAL SYSTEM & ANNUAL OVERPAYMENT BY MACHINE', '3. FATOR DE CARGA, SISTEMA ELÉTRICO E EXCESSO PAGO POR MAQUINÁRIO')}</span>
               <span className="text-xs font-mono font-bold text-amber-900">
                 TOP 1: {topConsumerMachine ? `${topConsumerMachine.name} (${((topConsumerMachine.monthlyKwh / totalEquipKwh) * 100).toFixed(1)}%)` : 'N/A'}
               </span>
             </div>
 
             <p className="text-xs text-slate-700 leading-relaxed">
-              Evaluación pericial del régimen de carga de cada máquina, sistema eléctrico de alimentación utilizado (Monofásico / Trifásico), sobrecosto o exceso anual por sobrecarga térmica y monto mensual facturado:
+              {rt(
+                'Evaluación pericial del régimen de carga de cada máquina, sistema eléctrico de alimentación utilizado (Monofásico / Trifásico), sobrecosto o exceso anual por sobrecarga térmica y monto mensual facturado:',
+                'Technical assessment of operating load factor per machine, electrical supply configuration (1-Phase / 3-Phase), annual surcharge due to thermal overload, and invoiced monthly electricity cost:',
+                'Avaliação pericial do regime de carga de cada máquina, sistema elétrico utilizado (Monofásico / Trifásico), sobrecusto anual por sobrecarga térmica e valor faturado mensal:'
+              )}
             </p>
 
-            {/* TABLA TÉCNICA OFICIAL (CONFORME A LA IMAGEN 1) */}
+            {/* TABLA TÉCNICA OFICIAL */}
             <div className="overflow-x-auto border border-slate-300 rounded-lg shadow-2xs">
               <table className="w-full text-xs text-left border-collapse bg-white">
                 <thead className="bg-slate-100 text-slate-900 font-bold border-b-2 border-slate-400 text-[11px] uppercase tracking-wider">
                   <tr>
-                    <th className="border-r border-slate-300 p-2 text-left">Máquina/Equipo</th>
-                    <th className="border-r border-slate-300 p-2 text-center">Factor de carga</th>
-                    <th className="border-r border-slate-300 p-2 text-center">Sistema eléct. usado</th>
-                    <th className="border-r border-slate-300 p-2 text-right">Exceso pago energía anual</th>
-                    <th className="border-r border-slate-300 p-2 text-right">PAGO AL MES POR ENERGÍA</th>
-                    <th className="p-2 text-center">% Consumo</th>
+                    <th className="border-r border-slate-300 p-2 text-left">{rt('Máquina/Equipo', 'Machine / Equipment', 'Máquina / Equipamento')}</th>
+                    <th className="border-r border-slate-300 p-2 text-center">{rt('Factor de carga', 'Load factor', 'Fator de carga')}</th>
+                    <th className="border-r border-slate-300 p-2 text-center">{rt('Sistema eléct. usado', 'Electrical system', 'Sistema elétrico')}</th>
+                    <th className="border-r border-slate-300 p-2 text-right">{rt('Exceso pago energía anual', 'Annual energy surcharge', 'Excesso pago energia anual')}</th>
+                    <th className="border-r border-slate-300 p-2 text-right">{rt('PAGO AL MES POR ENERGÍA', 'MONTHLY ENERGY PAYMENT', 'PAGAMENTO MENSAL DE ENERGIA')}</th>
+                    <th className="p-2 text-center">{rt('% Consumo', '% Consumption', '% Consumo')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 font-sans">
@@ -816,7 +970,7 @@ export const ReportTab: React.FC = () => {
                 </tbody>
                 <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-400 text-slate-950 text-xs">
                   <tr>
-                    <td className="border-r border-slate-300 p-2 uppercase">TOTAL GENERAL</td>
+                    <td className="border-r border-slate-300 p-2 uppercase">{rt('TOTAL GENERAL', 'GRAND TOTAL', 'TOTAL GERAL')}</td>
                     <td className="border-r border-slate-300 p-2 text-center font-mono">
                       {Math.round(equipmentTableRows.reduce((a, b) => a + b.factorPercent, 0) / (equipmentTableRows.length || 1))}% prom.
                     </td>
@@ -1427,8 +1581,8 @@ export const ReportTab: React.FC = () => {
         {sections.allRecommendations && (
           <div className="space-y-4 font-sans">
             <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>10. RECOMENDACIONES TÉCNICAS INTEGRALES PARA LA MEJORA DE TODO EL SISTEMA</span>
-              <span className="text-xs font-mono font-bold text-indigo-700">DICTAMEN PERICIAL</span>
+              <span>{rt('10. RECOMENDACIONES TÉCNICAS INTEGRALES PARA LA MEJORA DE TODO EL SISTEMA', '10. COMPREHENSIVE TECHNICAL IMPROVEMENT RECOMMENDATIONS', '10. RECOMENDAÇÕES TÉCNICAS INTEGRAIS DE MELHORIA')}</span>
+              <span className="text-xs font-mono font-bold text-indigo-700">{rt('DICTAMEN PERICIAL', 'EXPERT OPINION', 'PARECER PERICIAL')}</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs leading-relaxed">
@@ -1437,12 +1591,12 @@ export const ReportTab: React.FC = () => {
               <div className="border border-slate-200 p-3 rounded-lg bg-slate-50 space-y-1">
                 <strong className="text-slate-900 font-bold flex items-center gap-1.5">
                   <SlidersHorizontal className="h-3.5 w-3.5 text-indigo-600" />
-                  Tableros Eléctricos y Protecciones (CNE):
+                  {rt('Tableros Eléctricos y Protecciones (CNE):', 'Electrical Panels & Protections (Code):', 'Quadros Elétricos e Proteções (CNE):')}
                 </strong>
                 <ul className="list-disc pl-4 text-slate-600 space-y-1 text-[11px]">
-                  <li>Instalar interruptores diferenciales superinmunizados de 30mA en los circuitos que carecen de protección para salvar vidas humanas.</li>
-                  <li>Adecuar los calibres de conductores en circuitos con sobrecarga térmica y equilibrar las corrientes entre las tres fases en barras del TG.</li>
-                  <li>Proceder con el rotulado indeleble de circuitos y peinado normativo con espirales y terminales tipo pin.</li>
+                  <li>{rt('Instalar interruptores diferenciales superinmunizados de 30mA en los circuitos que carecen de protección para salvar vidas humanas.', 'Install 30mA super-immunized RCD differential breakers in unprotected circuits to protect human life.', 'Instalar interruptores diferenciais de 30mA nos circuitos desprotegidos para salvar vidas.')}</li>
+                  <li>{rt('Adecuar los calibres de conductores en circuitos con sobrecarga térmica y equilibrar las corrientes entre las tres fases en barras del TG.', 'Upgrade conductor wire gauges in overloaded circuits and balance currents among three phases.', 'Adequar bitolas de condutores com sobrecarga e equilibrar correntes entre fases.')}</li>
+                  <li>{rt('Proceder con el rotulado indeleble de circuitos y peinado normativo con espirales y terminales tipo pin.', 'Label circuits clearly and dress wiring neatly with pin terminals.', 'Rotular circuitos indelevelmente e organizar cabeamento com terminais tipo pino.')}</li>
                 </ul>
               </div>
 
@@ -1450,12 +1604,12 @@ export const ReportTab: React.FC = () => {
               <div className="border border-slate-200 p-3 rounded-lg bg-slate-50 space-y-1">
                 <strong className="text-slate-900 font-bold flex items-center gap-1.5">
                   <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                  Conexiones de Luminarias (RNE EM.010):
+                  {rt('Conexiones de Luminarias (RNE EM.010):', 'Lighting Fixtures (RNE EM.010):', 'Conexões de Luminárias (RNE EM.010):')}
                 </strong>
                 <ul className="list-disc pl-4 text-slate-600 space-y-1 text-[11px]">
-                  <li>Migración total de campanas y tubos fluorescentes a luminarias LED de alta eficiencia lumínica (&gt; 130 lm/W).</li>
-                  <li>Instalación de sensores de movimiento y presencia en áreas de tránsito intermitente y baños para evitar consumo pasivo.</li>
-                  <li>Limpieza periódica de difusores para recuperar hasta un 15% de flujo luminoso sin costo adicional de energía.</li>
+                  <li>{rt('Migración total de campanas y tubos fluorescentes a luminarias LED de alta eficiencia lumínica (> 130 lm/W).', 'Full migration from fluorescent fixtures to high-efficiency LED lights (> 130 lm/W).', 'Migração total para luminárias LED de alta eficiência (> 130 lm/W).')}</li>
+                  <li>{rt('Instalación de sensores de movimiento y presencia en áreas de tránsito intermitente y baños.', 'Install motion sensors in intermittent circulation areas and restrooms to avoid passive waste.', 'Instalação de sensores de presença em áreas intermitentes.')}</li>
+                  <li>{rt('Limpieza periódica de difusores para recuperar hasta un 15% de flujo luminoso sin costo adicional.', 'Periodic diffuser cleaning to recover up to 15% luminous flux at zero energy cost.', 'Limpeza periódica de difusores para recuperar até 15% de fluxo luminoso.')}</li>
                 </ul>
               </div>
 
@@ -1463,12 +1617,12 @@ export const ReportTab: React.FC = () => {
               <div className="border border-slate-200 p-3 rounded-lg bg-slate-50 space-y-1">
                 <strong className="text-slate-900 font-bold flex items-center gap-1.5">
                   <ShieldAlert className="h-3.5 w-3.5 text-emerald-600" />
-                  Sistema de Puesta a Tierra (INDECI / ITSE):
+                  {rt('Sistema de Puesta a Tierra (INDECI / ITSE):', 'Grounding Electrode System (ITSE):', 'Sistema de Aterramento (ITSE):')}
                 </strong>
                 <ul className="list-disc pl-4 text-slate-600 space-y-1 text-[11px]">
-                  <li>Realizar mantenimiento correctivo anual con aplicación de gel electrolítico para garantizar resistencia inferior a 25.0 Ω exigida por el CNE.</li>
-                  <li>Inspeccionar la conexión equipotencial de las masas metálicas de las máquinas al conductor de protección PE.</li>
-                  <li>Reemplazar grapas o conectores de cobre sulfatados en la caja de registro del pozo a tierra.</li>
+                  <li>{rt('Realizar mantenimiento correctivo anual con gel electrolítico para garantizar resistencia < 25.0 Ω exigida por norma.', 'Perform annual maintenance with electrolytic gel to maintain earth resistance < 25.0 Ω required by code.', 'Realizar manutenção corretiva anual para manter resistência < 25.0 Ω.')}</li>
+                  <li>{rt('Inspeccionar la conexión equipotencial de las masas metálicas de máquinas al conductor de protección PE.', 'Inspect equipotential bonding from machine metallic frames to protective earth (PE).', 'Inspecionar conexão equipotencial de massas metálicas ao condutor PE.')}</li>
+                  <li>{rt('Reemplazar grapas o conectores de cobre sulfatados en la caja de registro del pozo a tierra.', 'Replace corroded copper clamps and connectors in earth pit inspection boxes.', 'Substituir conectores de cobre oxidados na caixa de inspeção.')}</li>
                 </ul>
               </div>
 
@@ -1476,24 +1630,24 @@ export const ReportTab: React.FC = () => {
               <div className="border border-slate-200 p-3 rounded-lg bg-slate-50 space-y-1">
                 <strong className="text-slate-900 font-bold flex items-center gap-1.5">
                   <Zap className="h-3.5 w-3.5 text-rose-600" />
-                  Equipos y Máquinas de Mayor Consumo:
+                  {rt('Equipos y Máquinas de Mayor Consumo:', 'Major Energy Consuming Equipment:', 'Máquinas de Maior Consumo:')}
                 </strong>
                 <ul className="list-disc pl-4 text-slate-600 space-y-1 text-[11px]">
-                  <li>Implementar variadores de frecuencia (VFD) en los motores de las máquinas de mayor consumo para reducir arranque y modular potencia.</li>
-                  <li>Plan de mantenimiento predictivo mediante termografía infrarroja trimestral en bornes de alimentación y rodamientos de motores.</li>
-                  <li>Apagado programado de compresores y equipos auxiliares durante el refrigerio y cambios de turno.</li>
+                  <li>{rt('Implementar variadores de frecuencia (VFD) en motores de mayor potencia para reducir picos de arranque.', 'Install variable frequency drives (VFD) on high-power motors to reduce inrush current.', 'Instalar inversores de frequência (VFD) em motores de maior potência.')}</li>
+                  <li>{rt('Plan de mantenimiento predictivo con termografía infrarroja trimestral en bornes y rodamientos.', 'Predictive maintenance plan with quarterly infrared thermography on terminals and bearings.', 'Manutenção preditiva com termografia infravermelha trimestral em conexões.')}</li>
+                  <li>{rt('Apagado programado de compresores y equipos auxiliares en horarios de refrigerio.', 'Programmed shutdown of compressors and auxiliary loads during break periods.', 'Desligamento programado de compressores durante intervalos.')}</li>
                 </ul>
               </div>
 
               {/* Factor de Potencia y Calidad */}
               <div className="border border-slate-200 p-3 rounded-lg bg-slate-50 space-y-1">
                 <strong className="text-slate-900 font-bold flex items-center gap-1.5">
-                  <Activity className="h-3.5 w-3.5 text-indigo-600" />
-                  Factor de Potencia y Tarifa Eléctrica:
+                  <Activity className="h-4 w-4 text-indigo-600" />
+                  {rt('Factor de Potencia y Tarifa Eléctrica:', 'Power Factor & Utility Tariff:', 'Fator de Potência e Tarifa:')}
                 </strong>
                 <ul className="list-disc pl-4 text-slate-600 space-y-1 text-[11px]">
-                  <li>Instalar un banco automático de condensadores con cosφ controller para alcanzar FP ≥ 0.98 y eliminar al 100% las multas por energía reactiva.</li>
-                  <li>Evaluar la migración a tarifa con discriminación horaria (MT2/BT2) si se concentra producción en horario fuera de punta (23:00 a 18:00).</li>
+                  <li>{rt('Instalar un banco automático de condensadores con controlador para alcanzar FP ≥ 0.98 y anular multas reactivas.', 'Install an automatic capacitor bank to maintain PF ≥ 0.98 and completely eliminate reactive surcharges.', 'Instalar banco automático de capacitores para manter FP ≥ 0.98 e zerar multas reativas.')}</li>
+                  <li>{rt('Evaluar migración a tarifa horaria si se concentra producción en horario fuera de punta.', 'Evaluate time-of-use tariff migration if operating outside peak hours.', 'Avaliar migração tarifária se concentrar produção fora de ponta.')}</li>
                 </ul>
               </div>
 
@@ -1501,10 +1655,10 @@ export const ReportTab: React.FC = () => {
               <div className="border border-slate-200 p-3 rounded-lg bg-slate-50 space-y-1">
                 <strong className="text-slate-900 font-bold flex items-center gap-1.5">
                   <SunMedium className="h-3.5 w-3.5 text-amber-600" />
-                  Potencial Solar y Sostenibilidad:
+                  {rt('Potencial Solar y Sostenibilidad:', 'Solar Energy Potential:', 'Potencial Solar e Sustentabilidade:')}
                 </strong>
                 <ul className="list-disc pl-4 text-slate-600 space-y-1 text-[11px]">
-                  <li>Aprovechar el área libre de cubierta para una planta solar fotovoltaica on-grid que cubra la demanda base diurna de las instalaciones.</li>
+                  <li>{rt('Aprovechar el área libre de cubierta para una planta solar fotovoltaica on-grid que cubra la demanda base diurna.', 'Utilize rooftop area for an on-grid solar photovoltaic installation to cover daytime baseline load.', 'Aproveitar telhados para usina solar fotovoltaica on-grid para cobrir carga diurna.')}</li>
                 </ul>
               </div>
 
@@ -1512,33 +1666,46 @@ export const ReportTab: React.FC = () => {
           </div>
         )}
 
-        {/* SECTION 11: DICTAMEN Y DECLARACIÓN JURADA CIP (CON FIRMA EXCLUSIVA DEL INGENIERO CIP) */}
+        {/* SECTION 11: DICTAMEN Y DECLARACIÓN JURADA CIP */}
         {sections.cipStatement && (
           <div className="pt-6 border-t-2 border-slate-900 space-y-6">
             <div className="space-y-2 text-xs font-sans leading-relaxed">
-              <strong className="text-slate-900 block font-bold text-sm">11. CONCLUSIONES Y DICTAMEN TÉCNICO PERICIAL CIP:</strong>
+              <strong className="text-slate-900 block font-bold text-sm">
+                {rt('11. CONCLUSIONES Y DICTAMEN TÉCNICO PERICIAL CIP:', '11. CONCLUSIONS & OFFICIAL CIP EXPERT STATEMENT:', '11. CONCLUSÕES E PARECER TÉCNICO PERICIAL CIP:')}
+              </strong>
               <p className="text-slate-800">
-                El suscrito, Ingeniero Electricista / Mecánico Electricista con colegiatura vigente en el Consejo Departamental del Colegio de Ingenieros del Perú (CIP), certifica que la presente inspección técnica pericial y diagnóstico energético se llevaron a cabo respetando rigurosamente las normas peruanas CNE Utilización 2006, RNE EM.010, NTP 370.053 y las disposiciones de seguridad ITSE de INDECI.
+                {rt(
+                  `El suscrito, ${currentUser?.specialty || generalData.specialty || 'Ingeniero Electrónico'} con colegiatura vigente en el ${currentUser?.regionalCouncil || currentUser?.professionalCollege || generalData.professionalCollege || 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)'}, certifica que la presente inspección técnica pericial y diagnóstico energético se llevaron a cabo respetando rigurosamente las normas peruanas CNE Utilización 2006, RNE EM.010, NTP 370.053 y las disposiciones de seguridad ITSE de INDECI.`,
+                  `The undersigned, ${currentUser?.specialty || generalData.specialty || 'Collegiate Engineer'} with active registration in ${currentUser?.regionalCouncil || 'CIP Regional Council'}, certifies that this technical inspection and energy diagnosis was conducted in strict accordance with CNE / NEC electrical standards, building regulations, and safety protocols.`,
+                  `O engenheiro ${currentUser?.specialty || generalData.specialty || 'Engenheiro Registrado'} abaixo assinado com registro ativo no ${currentUser?.regionalCouncil || 'Conselho Regional CIP'}, certifica que a presente inspeção pericial e diagnóstico energético foram realizados em rigorosa conformidade com as normas técnicas e regulamentos de segurança.`
+                )}
               </p>
               <p className="text-slate-800">
-                Las especificaciones de la Lista de Materiales (BOM) y el cronograma de mejoras son de carácter vinculante para subsanar observaciones de seguridad y maximizar el rendimiento económico del suministro eléctrico.
+                {rt(
+                  'Las especificaciones de la Lista de Materiales (BOM) y el cronograma de mejoras son de carácter vinculante para subsanar observaciones de seguridad y maximizar el rendimiento económico del suministro eléctrico.',
+                  'The bill of materials (BOM) specifications and improvement roadmap are binding to resolve safety observations and maximize the energy efficiency and financial return of the electrical installation.',
+                  'As especificações da Lista de Materiais (BOM) e o cronograma de melhorias são vinculantes para sanar observações de segurança e maximizar o retorno econômico da instalação elétrica.'
+                )}
               </p>
             </div>
 
-            {/* Signature Box (SOLO FIRMA DEL INGENIERO COLEGIADO CIP, eliminada firma de titular/propietario) */}
+            {/* Signature Box */}
             <div className="flex justify-end pt-12 text-center text-xs font-sans">
               <div className="w-72 border-t-2 border-slate-900 pt-3 space-y-1">
                 <div className="font-bold text-slate-950 uppercase text-sm tracking-wide">
-                  {currentUser?.name || generalData.responsibleEngineer || 'Ing. Fernando Benites Torres'}
+                  {currentUser?.name || generalData.responsibleEngineer || 'Ing. Víctor Fernando Becerra Terán'}
                 </div>
                 <div className="text-xs font-bold text-amber-900 font-mono">
-                  CIP N° {currentUser?.cipNumber || generalData.cipNumber || '178452'}
+                  CIP N° {currentUser?.cipNumber || generalData.cipNumber || '278034'}
                 </div>
                 <div className="text-[11px] text-slate-700 font-medium">
-                  {currentUser?.specialty || generalData.specialty || 'Ingeniero Mecánico Electricista'}
+                  {currentUser?.specialty || generalData.specialty || 'Ingeniero Electrónico'}
                 </div>
                 <div className="text-[10.5px] text-slate-500 font-medium">
-                  {currentUser?.professionalCollege || generalData.professionalCollege || 'Colegio de Ingenieros del Perú (CIP)'}
+                  {currentUser?.professionalCollege || generalData.professionalCollege || 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)'}
+                </div>
+                <div className="text-[9.5px] text-slate-400 uppercase pt-1 border-t border-slate-200 mt-2 font-mono">
+                  {rt('Firma y Sello del Ingeniero Colegiado', 'Signature & Stamp of Collegiate Engineer', 'Assinatura e Carimbo do Engenheiro Registrado')}
                 </div>
               </div>
             </div>
@@ -1546,6 +1713,8 @@ export const ReportTab: React.FC = () => {
         )}
 
       </div>
+      </>
+      )}
 
     </div>
   );

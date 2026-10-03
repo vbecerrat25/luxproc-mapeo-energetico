@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDiagnostic } from '../../context/DiagnosticContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { MetricCard } from '../shared/MetricCard';
 import { TrafficBadge } from '../shared/TrafficBadge';
 import { 
@@ -16,7 +17,10 @@ import {
   ArrowRight,
   SunMedium,
   Flame,
-  FileBadge
+  FileBadge,
+  RotateCcw,
+  FolderCheck,
+  Sparkles
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -35,7 +39,6 @@ import { TariffRecommendationCard } from '../tariff/TariffRecommendationCard';
 export const ExecutiveDashboard: React.FC = () => {
   const {
     diagnostic,
-    activeScenario,
     equipmentSummary,
     demandBalance,
     receiptsStats,
@@ -44,8 +47,19 @@ export const ExecutiveDashboard: React.FC = () => {
     efficiencyEvaluation,
     computedEquipment,
     computedSavingsOpportunities,
-    setActiveTab
+    setActiveTab,
+    clearActiveWorkspace,
+    savedProjects
   } = useDiagnostic();
+  const { t, language } = useLanguage();
+
+  const rt = (esText: string, enText: string, ptText?: string): string => {
+    if (language === 'en') return enText;
+    if (language === 'pt') return ptText || enText;
+    return esText;
+  };
+
+  const [showCleanModal, setShowCleanModal] = useState(false);
 
   // Top 5 equipment consumers
   const topConsumers = [...(computedEquipment || [])]
@@ -102,32 +116,74 @@ export const ExecutiveDashboard: React.FC = () => {
     switch ((type || '').toLowerCase()) {
       case 'industria':
       case 'industrial':
-        return 'Planta Industrial / Manufactura General';
+        return rt('Planta Industrial / Manufactura General', 'Industrial Plant / Manufacturing', 'Planta Industrial / Manufatura');
       case 'comercio':
       case 'comercial':
-        return 'Local Comercial / Restaurante';
+        return rt('Local Comercial / Restaurante', 'Commercial Facility / Retail', 'Estabelecimento Comercial / Restaurante');
       case 'vivienda':
-        return 'Vivienda Residencial';
+        return rt('Vivienda Residencial', 'Residential Facility', 'Residencial');
       case 'oficina':
-        return 'Oficinas / Centro Corporativo';
+        return rt('Oficinas / Centro Corporativo', 'Offices / Corporate Facility', 'Escritórios / Corporativo');
       case 'almacen':
-        return 'Almacén / Centro Logístico';
+        return rt('Almacén / Centro Logístico', 'Warehouse / Logistics Center', 'Armazém / Centro Logístico');
       case 'educativo':
-        return 'Centro Educativo';
+        return rt('Centro Educativo', 'Educational Facility', 'Centro Educacional');
       case 'salud':
-        return 'Centro de Salud / Clínica';
+        return rt('Centro de Salud / Clínica', 'Healthcare / Clinic', 'Centro de Saúde / Clínica');
       case 'institucion':
-        return 'Entidad Institucional';
+        return rt('Entidad Institucional', 'Institutional Facility', 'Entidade Institucional');
       case 'calzado':
-        return 'Sector Manufactura / Calzado';
+        return rt('Sector Manufactura / Calzado', 'Footwear Manufacturing', 'Manufatura / Calçados');
       default:
-        return 'Instalación Activa';
+        return rt('Instalación Activa', 'Active Facility', 'Instalação Ativa');
     }
   };
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
       
+      {/* Workspace Management & Clean Platform Banner */}
+      <div className="bg-white rounded-2xl sm:rounded-[28px] p-4 sm:p-5 border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0">
+            <RotateCcw className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-black text-slate-900">
+                {t('dash.clean_banner_title', 'Espacio de Trabajo & Gestión de Proyectos')}
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {savedProjects.length}/2 {language === 'es' ? 'trabajos guardados' : 'saved projects'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5 max-w-xl">
+              {t('dash.clean_banner_desc', 'Inicie un peritaje desde cero o limpie los datos previamente guardados en la plataforma con un solo clic.')}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab('saved')}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+          >
+            <FolderCheck className="w-3.5 h-3.5 text-indigo-600" />
+            <span>{t('nav.saved_projects', 'Trabajos Realizados')} ({savedProjects.length}/2)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowCleanModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-slate-950 text-xs font-black transition-all cursor-pointer shadow-sm"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>{t('dash.clean_banner_action', 'Limpiar Plataforma Ahora')}</span>
+          </button>
+        </div>
+      </div>
+
       {/* 1. Bento Grid Primary Level */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
         
@@ -155,15 +211,15 @@ export const ExecutiveDashboard: React.FC = () => {
           <div className="relative z-10 mt-5 pt-4 sm:pt-5 border-t border-slate-100/80 flex flex-wrap items-center justify-between gap-4 sm:gap-6">
             <div className="flex items-center gap-4 sm:gap-8">
               <div>
-                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Cumplimiento CNE</p>
+                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">{rt('Cumplimiento CNE', 'Code Compliance', 'Conformidade CNE')}</p>
                 <p className="text-xl sm:text-2xl font-bold text-slate-800 font-sans">{auditProgressPct}%</p>
               </div>
               <div>
-                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Demanda Máx</p>
+                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">{rt('Demanda Máx', 'Max Demand', 'Demanda Máx')}</p>
                 <p className="text-xl sm:text-2xl font-bold text-slate-800 font-sans">{(demandBalance?.maximumDemandKw ?? 0).toFixed(1)} <span className="text-sm font-normal text-slate-400">kW</span></p>
               </div>
               <div className="block">
-                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Factor Potencia</p>
+                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">{rt('Factor Potencia', 'Power Factor', 'Fator Potência')}</p>
                 <p className={`text-xl sm:text-2xl font-bold font-sans ${(receiptsStats?.averagePowerFactor ?? 0.85) < 0.96 ? 'text-amber-600' : 'text-emerald-600'}`}>
                   {(receiptsStats?.averagePowerFactor ?? 0.85).toFixed(2)}
                 </p>
@@ -179,10 +235,10 @@ export const ExecutiveDashboard: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('report')}
-              className="w-full sm:w-auto bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <FileBadge className="h-3.5 w-3.5 text-amber-400" />
-              <span>Ver Dictamen CIP</span>
+              <span>{rt('Ver Dictamen CIP', 'View CIP Report', 'Ver Parecer CIP')}</span>
             </button>
           </div>
 
@@ -197,25 +253,25 @@ export const ExecutiveDashboard: React.FC = () => {
               <TrendingUp className="w-6 h-6" />
             </div>
             <span className="text-emerald-400 text-xs font-bold bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">
-              S/. {((totalAnnualSavingsSoles || 0) / 12).toFixed(0)}/mes ahorro
+              S/. {((totalAnnualSavingsSoles || 0) / 12).toFixed(0)}/{rt('mes ahorro', 'mo. savings', 'mês economia')}
             </span>
           </div>
 
           <div className="my-4">
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Ahorro Anual Identificado</p>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">{rt('Ahorro Anual Identificado', 'Identified Annual Savings', 'Economia Anual Identificada')}</p>
             <p className="text-3xl font-bold tracking-tight mt-1 text-white font-sans">
-              S/. {totalAnnualSavingsSoles.toLocaleString('es-PE', { maximumFractionDigits: 0 })}
+              S/. {totalAnnualSavingsSoles.toLocaleString(language === 'en' ? 'en-US' : language === 'pt' ? 'pt-BR' : 'es-PE', { maximumFractionDigits: 0 })}
             </p>
             <p className="text-slate-400 text-xs mt-1">
-              En {computedSavingsOpportunities.length} medidas de optimización CNE/RNE
+              {rt(`En ${computedSavingsOpportunities.length} medidas de optimización CNE/RNE`, `Across ${computedSavingsOpportunities.length} efficiency measures`, `Em ${computedSavingsOpportunities.length} medidas de eficiência`)}
             </p>
           </div>
 
           <button
             onClick={() => setActiveTab('opportunities')}
-            className="w-full bg-white/10 hover:bg-white/20 text-white rounded-xl py-2 px-3 text-xs font-semibold flex items-center justify-between transition-colors"
+            className="w-full bg-white/10 hover:bg-white/20 text-white rounded-xl py-2 px-3 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
           >
-            <span>Explorar Plan de Ahorro</span>
+            <span>{rt('Explorar Plan de Ahorro', 'Explore Savings Plan', 'Explorar Plano de Economia')}</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -433,6 +489,50 @@ export const ExecutiveDashboard: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Confirmation Modal to Clean Platform */}
+      {showCleanModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setShowCleanModal(false)}
+        >
+          <div 
+            className="relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
+              <RotateCcw className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">
+                {t('header.clean_confirm_title', '¿Limpiar toda la plataforma web?')}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                {t('header.clean_confirm_desc', 'Se restablecerán todos los datos cargados para iniciar un nuevo proyecto en blanco. Recuerde que puede guardar el proyecto actual en "Trabajos Realizados" antes de limpiar.')}
+              </p>
+            </div>
+            <div className="pt-2 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowCleanModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold cursor-pointer"
+              >
+                {t('header.cancel', 'Cancelar')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearActiveWorkspace();
+                  setShowCleanModal(false);
+                }}
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md cursor-pointer transition-all"
+              >
+                {t('header.confirm', 'Sí, Limpiar Todo')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

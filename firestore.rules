@@ -2,13 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny all
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function isMasterAdmin() {
+      return isSignedIn() && (request.auth.token.email == 'luxproc.11@gmail.com');
     }
 
     function isOwner(userId) {
@@ -16,31 +15,30 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() <= 128;
     }
 
-    // User profiles
+    // Perfiles de usuario
     match /users/{userId} {
-      allow get: if isSignedIn() && (isOwner(userId) || resource.data.uid == request.auth.uid);
-      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
-      allow create, update: if isSignedIn() && isOwner(userId)
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.email is string
-        && request.resource.data.name is string;
+      allow get: if isSignedIn() && (isOwner(userId) || isMasterAdmin());
+      allow list: if isMasterAdmin();
+      allow create, update: if isSignedIn() && isOwner(userId);
       allow delete: if false;
     }
 
-    // Diagnostics projects
+    // Diagnósticos individuales de usuarios
     match /diagnostics/{diagnosticId} {
-      allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(diagnosticId)
-        && request.resource.data.ownerId == request.auth.uid;
-      allow update: if isSignedIn() && isValidId(diagnosticId)
-        && resource.data.ownerId == request.auth.uid
-        && request.resource.data.ownerId == request.auth.uid;
-      allow delete: if isSignedIn() && isValidId(diagnosticId)
-        && resource.data.ownerId == request.auth.uid;
+      allow get, list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isMasterAdmin());
+      allow create: if isSignedIn() && isValidId(diagnosticId);
+      allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isMasterAdmin());
+    }
+
+    // Registro Maestro de Evaluaciones de Empresas (Acceso total para luxproc.11@gmail.com sin borrado)
+    match /company_evaluations/{evaluationId} {
+      allow get, list: if isMasterAdmin() || (isSignedIn() && resource.data.createdByEmail == request.auth.token.email);
+      allow create: if isSignedIn() && isValidId(evaluationId);
+      allow update: if isMasterAdmin();
+      allow delete: if false; // Inmutable para preservar historial de todas las empresas
     }
   }
 }

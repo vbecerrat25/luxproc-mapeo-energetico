@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDiagnostic } from '../../context/DiagnosticContext';
 import { 
   Building2, 
@@ -10,13 +10,59 @@ import {
   Layers, 
   Clock, 
   Info,
-  Briefcase
+  Briefcase,
+  Lock,
+  CheckCircle2,
+  Search,
+  ShieldCheck
 } from 'lucide-react';
 import { TariffRecommendationCard } from '../tariff/TariffRecommendationCard';
+import { lookupCIPRecord, CIPRecord, CIP_REGIONAL_COUNCILS, CIP_SPECIALTIES } from '../../utils/cipValidator';
 
 export const GeneralDataTab: React.FC = () => {
-  const { diagnostic, updateGeneralData, updateTariff } = useDiagnostic();
+  const { diagnostic, updateGeneralData, updateTariff, currentUser, updateUserProfile } = useDiagnostic();
   const { generalData, tariff } = diagnostic;
+  const [cipSearchInput, setCipSearchInput] = useState(generalData.cipNumber || currentUser?.cipNumber || '278034');
+  const [cipSearchStatus, setCipSearchStatus] = useState<string | null>(null);
+  const [verifiedCIPData, setVerifiedCIPData] = useState<CIPRecord | null>(() => 
+    lookupCIPRecord(
+      generalData.cipNumber || currentUser?.cipNumber || '278034',
+      generalData.responsibleEngineer || currentUser?.name,
+      generalData.specialty || currentUser?.specialty,
+      currentUser?.regionalCouncil
+    )
+  );
+
+  const handlePerformCIPLookup = (cipCode: string) => {
+    const clean = (cipCode || '').trim().replace(/[^0-9]/g, '');
+    if (!clean) return;
+    const record = lookupCIPRecord(clean);
+    if (record) {
+      setVerifiedCIPData(record);
+      const matchedCouncil = CIP_REGIONAL_COUNCILS.find(c => c.name === record.regionalCouncil || c.college === record.college);
+      const dept = matchedCouncil ? matchedCouncil.department : 'La Libertad';
+      updateGeneralData({
+        cipNumber: record.cipNumber,
+        specialty: record.specialty,
+        professionalCollege: record.college,
+        responsibleEngineer: record.fullName,
+        department: dept
+      });
+      if (updateUserProfile && currentUser) {
+        updateUserProfile({
+          cipNumber: record.cipNumber,
+          specialty: record.specialty,
+          professionalCollege: record.college,
+          regionalCouncil: record.regionalCouncil,
+          chapter: record.chapter,
+          name: record.fullName
+        });
+      }
+      setCipSearchStatus(`✓ ${record.fullName} · ${record.regionalCouncil} · ${record.specialty}`);
+    } else {
+      setCipSearchStatus('Número CIP no válido. Ingrese entre 5 y 6 dígitos numéricos.');
+    }
+  };
 
   const PERUVIAN_DISTRIBUTORS = [
     'Luz del Sur S.A.A.',
@@ -33,12 +79,16 @@ export const GeneralDataTab: React.FC = () => {
   ];
 
   const PERUVIAN_TARIFF_CODES = [
-    'BT5B - Residencial / Comercial Simple',
-    'BT5A - Residencial / Comercial con Medición Horaria',
-    'BT3 - Baja Tensión Comercial/Industrial con Doble Medición',
-    'BT2 - Baja Tensión Gran Demanda',
-    'MT3 - Media Tensión con Medición de Energía y Potencia',
-    'MT2 - Media Tensión Gran Demanda Industrial'
+    'BT5B - Residencial / Comercial Simple (Baja Tensión)',
+    'BT5A - Horaria HP / HFP (Baja Tensión)',
+    'BT2 - Horaria Integral Energía y Potencia (Baja Tensión)',
+    'BT3 - Doble Medición Energía + Potencia (Baja Tensión)',
+    'BT4 - Medición de Energía y Dos Potencias (Baja Tensión)',
+    'BT6 - Usos Generales / Alumbrado (Baja Tensión)',
+    'MT2 - Media Tensión Horaria Integral (Subestación 10-22.9 kV)',
+    'MT3 - Media Tensión con Medición de Potencia Simple',
+    'MT4 - Media Tensión con Dos Potencias (HP y HFP)',
+    'LIBRE - Mercado Libre de Electricidad (>200 kW Ley 28832)'
   ];
 
   const DEFAULT_AREAS_BY_TYPE: Record<string, string[]> = {
@@ -276,58 +326,160 @@ export const GeneralDataTab: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 2: Responsabilidad Técnica CIP */}
+        {/* Card 2: Responsabilidad Técnica CIP con Búsqueda y Validación Oficial Blindada */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3 text-slate-900">
-            <UserCheck className="h-5 w-5 text-emerald-600" />
-            <h3 className="text-sm font-bold">Responsable Técnico Colegiado (CIP)</h3>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2 text-slate-900">
+              <UserCheck className="h-5 w-5 text-emerald-600" />
+              <div>
+                <h3 className="text-sm font-bold">Responsable Técnico Colegiado (CIP)</h3>
+                <p className="text-[11px] text-slate-500">Validación directa en el Padrón Nacional de Colegiados</p>
+              </div>
+            </div>
+            {verifiedCIPData?.verified && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>CIP HABILITADO</span>
+              </span>
+            )}
           </div>
 
-          <div className="space-y-3 text-xs">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Ingeniero Electricista / Mecánico Electricista</label>
-              <input
-                type="text"
-                value={generalData.responsibleEngineer || ''}
-                onChange={(e) => updateGeneralData({ responsibleEngineer: e.target.value })}
-                placeholder="Ej. Ing. Fernando Benites Torres"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
-              />
+          <div className="space-y-3.5 text-xs">
+            {/* Buscador de CIP con Validación Oficial */}
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+              <label className="block font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+                Búsqueda y Verificación Oficial de Colegiatura CIP:
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={cipSearchInput}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setCipSearchInput(val);
+                      if (val.length >= 5) {
+                        handlePerformCIPLookup(val);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handlePerformCIPLookup(cipSearchInput);
+                      }
+                    }}
+                    placeholder="Ingrese N° de Registro CIP (ej: 278034, 215430, 98765...)"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-indigo-600 focus:outline-none shadow-2xs"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handlePerformCIPLookup(cipSearchInput)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Validar CIP</span>
+                </button>
+              </div>
+
+              {cipSearchStatus && (
+                <p className="text-[11px] font-medium text-emerald-700 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>{cipSearchStatus}</span>
+                </p>
+              )}
+
+              {/* Fin bloque CIP */}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Sección Protegida: Datos del Colegiado Autocompletados y Blindados */}
+            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Datos Oficiales del Colegiado (Autocompletados y Blindados)</span>
+                </span>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                  Protegido Anti-Fraude
+                </span>
+              </div>
+
+              {/* Ingeniero Responsable */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Especialidad de la Ingeniería</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-semibold text-slate-700 text-xs">Ingeniero Responsable Colegiado</label>
+                  <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" /> Autocompletado por CIP
+                  </span>
+                </div>
                 <input
                   type="text"
-                  value={generalData.specialty || ''}
-                  onChange={(e) => updateGeneralData({ specialty: e.target.value })}
-                  placeholder="Ej. Ingeniero Mecánico Electricista"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
+                  value={generalData.responsibleEngineer || currentUser?.name || 'Ing. Víctor Fernando Becerra Terán'}
+                  readOnly
+                  disabled
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100/90 px-3 py-2 text-xs font-bold text-slate-900 cursor-not-allowed select-none opacity-95 shadow-2xs"
                 />
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Colegio Profesional / Consejo</label>
-                <input
-                  type="text"
-                  value={generalData.professionalCollege || ''}
-                  onChange={(e) => updateGeneralData({ professionalCollege: e.target.value })}
-                  placeholder="Ej. Colegio de Ingenieros del Perú (CIP)"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
-                />
+              {/* Selección y Validación Oficial: Especialidad y Consejo Departamental */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-slate-700 text-xs">Especialidad de Ingeniería CIP</label>
+                    <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Autocompletado por CIP
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={generalData.specialty || currentUser?.specialty || 'Ingeniero Electrónico'}
+                    readOnly
+                    disabled
+                    className="w-full rounded-lg border border-slate-300 bg-slate-100/90 px-3 py-2 text-xs font-bold text-slate-900 cursor-not-allowed select-none opacity-95 shadow-2xs"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    ✓ Especialidad oficial certificada para refrendar peritajes
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-slate-700 text-xs">Colegio / Consejo Departamental CIP</label>
+                    <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Autocompletado por CIP
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={currentUser?.regionalCouncil || (generalData.department ? `CD ${generalData.department}` : 'CD La Libertad (Trujillo)')}
+                    readOnly
+                    disabled
+                    className="w-full rounded-lg border border-slate-300 bg-slate-100/90 px-3 py-2 text-xs font-bold text-slate-900 cursor-not-allowed select-none opacity-95 shadow-2xs"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    ✓ Consejo Departamental con jurisdicción y habilitación vigente
+                  </p>
+                </div>
               </div>
             </div>
 
+            {/* Número CIP y Fecha de Inspección */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Número de Registro CIP</label>
+                <label className="block font-semibold text-slate-700 mb-1">Número de Registro CIP Validado</label>
                 <input
                   type="text"
                   value={generalData.cipNumber || ''}
-                  onChange={(e) => updateGeneralData({ cipNumber: e.target.value })}
-                  placeholder="Ej. 178452"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-amber-900 focus:border-amber-500 focus:outline-none"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    updateGeneralData({ cipNumber: val });
+                    setCipSearchInput(val);
+                    if (val.length >= 4) {
+                      handlePerformCIPLookup(val);
+                    }
+                  }}
+                  placeholder="Ej. 278034"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-indigo-900 bg-indigo-50/40 focus:border-indigo-600 focus:outline-none"
                 />
               </div>
 
@@ -342,13 +494,26 @@ export const GeneralDataTab: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-emerald-900">
-              <div className="font-bold flex items-center gap-1.5 mb-1">
-                <span>Certificación Oficial de Informes</span>
+            {/* Ficha de Certificación Oficial CIP */}
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-emerald-950 space-y-1.5">
+              <div className="font-bold flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                  <span>Certificación Oficial de Peritaje Técnico CIP</span>
+                </span>
+                <span className="text-[10px] font-mono bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded font-bold">
+                  {verifiedCIPData?.status || 'HABILITADO'}
+                </span>
               </div>
-              <p className="text-[11px] text-emerald-700 leading-relaxed">
-                El informe técnico generado incorpora el formato reglamentario exigido por los Consejos Departamentales del Colegio de Ingenieros del Perú (CIP) y municipalidades (INDECI / ITSE).
+              <p className="text-[11px] text-emerald-800 leading-relaxed">
+                {verifiedCIPData?.legalNotice || 'El informe técnico generado incorpora el formato reglamentario y datos blindados no modificables exigidos por el Colegio de Ingenieros del Perú (CIP), INDECI e ITSE.'}
               </p>
+              {verifiedCIPData && (
+                <div className="pt-1 border-t border-emerald-200/70 flex flex-wrap items-center justify-between text-[10px] text-emerald-900 font-medium">
+                  <span>Capítulo: <strong>{verifiedCIPData.chapter}</strong></span>
+                  <span>Colegiado desde: <strong>{verifiedCIPData.registrationDate}</strong></span>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -5,14 +5,18 @@ import {
   X, 
   Check, 
   Sparkles, 
-  ShieldCheck, 
   Zap, 
   Award, 
-  ArrowRight, 
   CreditCard,
   CheckCircle2,
-  Lock,
-  Layers
+  Layers,
+  Calendar,
+  Percent,
+  Plus,
+  Minus,
+  Clock,
+  ShieldCheck,
+  QrCode
 } from 'lucide-react';
 
 export const SubscriptionModal: React.FC = () => {
@@ -27,11 +31,40 @@ export const SubscriptionModal: React.FC = () => {
   const [paymentStep, setPaymentStep] = useState<'compare' | 'paying' | 'success'>('compare');
   const [selectedPlanToPay, setSelectedPlanToPay] = useState<'ESTANDAR' | 'PREMIUM'>('PREMIUM');
   const [paymentMethod, setPaymentMethod] = useState<'yape' | 'plin' | 'tarjeta' | 'transferencia'>('yape');
+  
+  // Selector de meses interactivo: de 1 a 12 meses
+  const [selectedMonths, setSelectedMonths] = useState<number>(1);
 
   if (!isSubscriptionModalOpen) return null;
 
+  // Escala de descuentos solicitada:
+  // A partir de 3 meses (3 a 5 meses): 3% de descuento
+  // A partir de 6 meses (6 a 11 meses): 6% de descuento
+  // Por 12 meses: 9% de descuento
+  const getDiscountPercent = (months: number): number => {
+    if (months >= 12) return 9;
+    if (months >= 6) return 6;
+    if (months >= 3) return 3;
+    return 0;
+  };
+
+  const calculatePricing = (plan: 'ESTANDAR' | 'PREMIUM', months: number) => {
+    const basePrice = plan === 'PREMIUM' ? 50 : 20;
+    const subtotal = basePrice * months;
+    const discountPct = getDiscountPercent(months);
+    const discountAmount = subtotal * (discountPct / 100);
+    const total = subtotal - discountAmount;
+    return {
+      basePrice,
+      months,
+      subtotal,
+      discountPct,
+      discountAmount,
+      total
+    };
+  };
+
   const handleStartUpgrade = (targetPlan: 'ESTANDAR' | 'PREMIUM') => {
-    if (targetPlan === subscriptionPlan) return;
     setSelectedPlanToPay(targetPlan);
     setPaymentStep('paying');
   };
@@ -42,29 +75,43 @@ export const SubscriptionModal: React.FC = () => {
     setTimeout(() => {
       setPaymentStep('compare');
       setIsSubscriptionModalOpen(false);
-    }, 1500);
+    }, 1600);
+  };
+
+  const standardPricing = calculatePricing('ESTANDAR', selectedMonths);
+  const premiumPricing = calculatePricing('PREMIUM', selectedMonths);
+  const payingPricing = calculatePricing(selectedPlanToPay, selectedMonths);
+
+  // Calcular fecha de vigencia estimada según meses
+  const getExpirationDate = (months: number): string => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    return d.toLocaleDateString(language === 'en' ? 'en-US' : language === 'pt' ? 'pt-BR' : 'es-PE', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
   };
 
   const standardFeatures = [
-    language === 'es' ? 'Datos Generales & Tarifas Eléctricas' : 'General Data & Electrical Tariffs',
-    language === 'es' ? 'Recibos de Consumo vs Censo de Equipos' : 'Utility Bills vs Equipment Survey',
-    language === 'es' ? 'Censo de Cargas e Instalación Eléctrica' : 'Equipment Survey & Electrical Loads',
-    language === 'es' ? 'Tableros y Circuitos bajo Código CNE' : 'Electrical Panels & Circuits (CNE / NEC)',
-    language === 'es' ? 'Puesta a Tierra (PAT) y Medición Telúrica' : 'Grounding System (PAT) & Soil Resistance',
-    language === 'es' ? 'Evidencias Fotográficas de la Auditoría' : 'Photo Evidence Records',
-    language === 'es' ? 'Hasta 2 Proyectos Guardados en Trabajos Realizados' : 'Up to 2 Saved Projects in Completed Works',
-    language === 'es' ? 'Informe Técnico Preliminar CNE' : 'Preliminary CNE Technical Report'
+    language === 'es' ? 'Datos Generales & Tarifas Eléctricas' : language === 'pt' ? 'Dados Gerais & Tarifas Elétricas' : 'General Data & Electrical Tariffs',
+    language === 'es' ? 'Recibos de Consumo vs Censo de Equipos' : language === 'pt' ? 'Faturas de Consumo vs Censo de Cargas' : 'Utility Bills vs Equipment Survey',
+    language === 'es' ? 'Censo de Cargas e Instalación Eléctrica' : language === 'pt' ? 'Censo de Equipamentos e Cargas' : 'Equipment Survey & Electrical Loads',
+    language === 'es' ? 'Tableros y Circuitos bajo Código CNE' : language === 'pt' ? 'Quadros e Circuitos conforme Código CNE' : 'Electrical Panels & Circuits (CNE / NEC)',
+    language === 'es' ? 'Puesta a Tierra (PAT) y Medición Telúrica' : language === 'pt' ? 'Aterramento (PAT) e Medição Telúrica' : 'Grounding System (PAT) & Soil Resistance',
+    language === 'es' ? 'Evidencias Fotográficas de la Inspección' : language === 'pt' ? 'Evidências Fotográficas da Inspeção' : 'Inspection Photo Evidence',
+    language === 'es' ? 'Hasta 2 Trabajos Guardados en Plataforma' : language === 'pt' ? 'Até 2 Projetos Salvos na Plataforma' : 'Up to 2 Saved Projects in Platform',
+    language === 'es' ? 'Informe Oficial Certificado CIP con Firma Pericial' : language === 'pt' ? 'Relatório Oficial Certificado CIP com Assinatura Pericial' : 'Official Certified CIP Report with Stamp & Signature'
   ];
 
   const premiumFeatures = [
-    language === 'es' ? 'Todo lo incluido en el Plan Estándar' : 'Everything in Standard Plan',
-    language === 'es' ? 'Compensación de Factor de Potencia (cos φ) & Condensadores' : 'Power Factor Compensation & Capacitor Banks',
-    language === 'es' ? 'Dimensionamiento y Simulación Solar Fotovoltaica (PV)' : 'Solar PV Dimensioning & Financial Payback Simulation',
-    language === 'es' ? 'Estudio de Iluminación y Luxometría según RNE EM.010' : 'Lighting & Lux Measurement Study (RNE EM.010)',
-    language === 'es' ? 'Matriz Inteligente de Oportunidades de Ahorro' : 'Energy Savings Opportunities Matrix',
-    language === 'es' ? 'Lista de Materiales (BOM) & Presupuesto Comercial' : 'Bill of Materials (BOM) & Commercial Costing',
-    language === 'es' ? 'Informe Pericial Certificado CIP Completo con Firma Digital' : 'Full CIP Certified Pericial Report with Digital Signatures',
-    language === 'es' ? 'Exportación Avanzada Excel (.xlsx) y Descarga PDF Directa' : 'Advanced Excel (.xlsx) & PDF Document Export'
+    language === 'es' ? 'Todo lo incluido en el Plan Estándar' : language === 'pt' ? 'Tudo incluído no Plano Padrão' : 'Everything in Standard Plan',
+    language === 'es' ? 'Compensación Factor de Potencia (cos φ) & Banco Condensadores' : language === 'pt' ? 'Compensação Fator de Potência (cos φ) & Banco Capacitores' : 'Power Factor Compensation & Capacitor Banks',
+    language === 'es' ? 'Dimensionamiento & Simulación Solar Fotovoltaica (PV)' : language === 'pt' ? 'Dimensionamento & Simulação Solar Fotovoltaica (PV)' : 'Solar PV Simulation & Financial Payback',
+    language === 'es' ? 'Estudio de Iluminación & Luxometría (RNE EM.010)' : language === 'pt' ? 'Estudo de Iluminação & Luxometria (RNE EM.010)' : 'Lighting & Lux Measurement Study (RNE EM.010)',
+    language === 'es' ? 'Matriz Inteligente de Oportunidades de Ahorro (VAN / TIR)' : language === 'pt' ? 'Matriz Inteligente de Economia Energética (VPL / TIR)' : 'Smart Energy Savings Matrix (NPV / IRR)',
+    language === 'es' ? 'Lista de Materiales (BOM) & Presupuesto Comercial' : language === 'pt' ? 'Lista de Materiais (BOM) & Orçamento Comercial' : 'Bill of Materials (BOM) & Costing',
+    language === 'es' ? 'Exportación Completa Excel (.xlsx) con Memorias de Cálculo' : language === 'pt' ? 'Exportação Completa Excel (.xlsx) com Fórmulas e Memoriais' : 'Full Excel (.xlsx) Export with Calculation Models'
   ];
 
   return (
@@ -76,18 +123,21 @@ export const SubscriptionModal: React.FC = () => {
         className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-5 text-white flex items-center justify-between">
+        {/* Header Modal */}
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-4 sm:py-5 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
               <Award className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-black tracking-tight text-white">
-                {t('plan.modal_title', 'Planes de Suscripción E-DIAGNOSIS OS')}
+              <h3 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
+                <span>{t('plan.modal_title', 'Planes de Suscripción E-DIAGNOSIS OS')}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-mono border border-amber-400/30 uppercase">
+                  1 - 12 Meses
+                </span>
               </h3>
               <p className="text-xs text-slate-300">
-                {t('plan.modal_subtitle', 'Elija el plan adecuado para su ejercicio profesional según el Colegio de Ingenieros del Perú (CIP)')}
+                {t('plan.modal_subtitle', 'Elija el plan y la cantidad de meses (1 a 12 meses) con escala oficial de descuentos')}
               </p>
             </div>
           </div>
@@ -100,20 +150,152 @@ export const SubscriptionModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6">
+        {/* Contenido Principal */}
+        <div className="p-5 sm:p-6 space-y-5">
+
+          {/* ========================================================================= */}
+          {/* SELECTOR INTERACTIVO Y PROMINENTE DE MESES (1 A 12 MESES)                 */}
+          {/* ========================================================================= */}
+          <div className="bg-gradient-to-r from-indigo-50/90 via-slate-50 to-amber-50/80 p-4 sm:p-5 rounded-2xl border border-indigo-200/80 shadow-2xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-xs">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>{t('plan.duration_label', 'Periodo de Suscripción (1 a 12 meses):')}</span>
+                    <span className="text-indigo-600 font-mono text-sm font-black">
+                      {selectedMonths} {selectedMonths === 1 ? t('plan.month_single', 'mes') : t('plan.months_count', 'meses')}
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-slate-600">
+                    {language === 'es' 
+                      ? 'Ajuste la duración con los botones o la barra deslizable. Descuentos: 3% (3+ m) · 6% (6+ m) · 9% (12 m)' 
+                      : language === 'pt'
+                        ? 'Ajuste a duração com os botões ou barra. Descontos: 3% (3+ m) · 6% (6+ m) · 9% (12 m)'
+                        : 'Adjust duration with stepper or slider. Discounts: 3% (3+ m) · 6% (6+ m) · 9% (12 m)'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Stepper (+ / -) con visualización de meses */}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <div className="flex items-center bg-white border-2 border-indigo-300 rounded-2xl p-1 shadow-xs">
+                  <button
+                    type="button"
+                    disabled={selectedMonths <= 1}
+                    onClick={() => setSelectedMonths(prev => Math.max(1, prev - 1))}
+                    className="p-1.5 rounded-xl text-slate-700 hover:text-indigo-900 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
+                    title="Disminuir un mes"
+                  >
+                    <Minus className="w-4 h-4 stroke-[2.5]" />
+                  </button>
+
+                  <div className="px-3 min-w-[90px] text-center">
+                    <span className="block text-sm font-black font-mono text-indigo-950 leading-none">
+                      {selectedMonths}
+                    </span>
+                    <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500">
+                      {selectedMonths === 1 ? t('plan.month_single', 'mes') : t('plan.months_count', 'meses')}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={selectedMonths >= 12}
+                    onClick={() => setSelectedMonths(prev => Math.min(12, prev + 1))}
+                    className="p-1.5 rounded-xl text-slate-700 hover:text-indigo-900 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
+                    title="Aumentar un mes"
+                  >
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Slider de 1 a 12 meses */}
+            <div className="pt-1">
+              <input
+                type="range"
+                min="1"
+                max="12"
+                step="1"
+                value={selectedMonths}
+                onChange={(e) => setSelectedMonths(parseInt(e.target.value, 10))}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <div className="flex justify-between text-[10px] font-bold text-slate-400 mt-1 px-1 font-mono">
+                <span>1 mes</span>
+                <span>3m (-3%)</span>
+                <span>6m (-6%)</span>
+                <span>9m (-6%)</span>
+                <span>12m (-9%)</span>
+              </div>
+            </div>
+
+            {/* Acceso Rápido en Botones / Pastillas */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[11px] font-bold text-slate-500 mr-1">
+                {language === 'es' ? 'Accesos rápidos:' : language === 'pt' ? 'Atalhos rápidos:' : 'Quick shortcuts:'}
+              </span>
+              {[
+                { m: 1, label: '1 mes (S/ base)' },
+                { m: 2, label: '2 meses' },
+                { m: 3, label: '3 meses (-3% OFF)' },
+                { m: 6, label: '6 meses (-6% OFF)' },
+                { m: 12, label: '12 meses (-9% OFF)' }
+              ].map(btn => (
+                <button
+                  key={btn.m}
+                  type="button"
+                  onClick={() => setSelectedMonths(btn.m)}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                    selectedMonths === btn.m
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-300 hover:border-indigo-400 hover:bg-slate-50'
+                  }`}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Notificación de Descuento Activo */}
+            {getDiscountPercent(selectedMonths) > 0 && (
+              <div className="pt-2 border-t border-indigo-200/60 flex items-center justify-between text-xs font-semibold text-emerald-800">
+                <span className="flex items-center gap-1.5">
+                  <Percent className="w-4 h-4 text-emerald-600" />
+                  <span>
+                    {language === 'es' 
+                      ? `¡Descuento oficial del ${getDiscountPercent(selectedMonths)}% aplicado para ${selectedMonths} meses!` 
+                      : language === 'pt'
+                        ? `Desconto oficial de ${getDiscountPercent(selectedMonths)}% aplicado para ${selectedMonths} meses!`
+                        : `Official ${getDiscountPercent(selectedMonths)}% loyalty discount applied for ${selectedMonths} months!`}
+                  </span>
+                </span>
+                <span className="font-mono text-[11px] bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-md font-bold">
+                  {selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* ========================================================================= */}
+          {/* PASO 1: COMPARATIVA DE PLANES (ESTÁNDAR S/ 20 VS PREMIUM S/ 50)            */}
+          {/* ========================================================================= */}
           {paymentStep === 'compare' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
               
-              {/* PLAN ESTÁNDAR (S/ 30) */}
-              <div className={`relative rounded-3xl p-6 border-2 transition-all flex flex-col justify-between ${
+              {/* PLAN ESTÁNDAR (S/ 20/mes) */}
+              <div className={`relative rounded-3xl p-5 sm:p-6 border-2 transition-all flex flex-col justify-between ${
                 subscriptionPlan === 'ESTANDAR'
                   ? 'border-indigo-600 bg-indigo-50/20 shadow-md ring-2 ring-indigo-500/10'
-                  : 'border-slate-200 bg-white hover:border-slate-300'
+                  : 'border-slate-200 bg-white hover:border-slate-300 shadow-2xs'
               }`}>
                 {subscriptionPlan === 'ESTANDAR' && (
                   <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-black tracking-wider uppercase shadow-xs">
-                    {t('plan.current_active', 'Plan Activo')}
+                    {t('plan.current_active', 'Plan Activo Actual')}
                   </div>
                 )}
 
@@ -122,25 +304,47 @@ export const SubscriptionModal: React.FC = () => {
                     <span className="text-xs font-black uppercase tracking-wider text-slate-500">
                       {t('plan.standard_title', 'Plan Estándar')}
                     </span>
-                    <span className="p-1 rounded-lg bg-slate-100 text-slate-700">
+                    <span className="p-1.5 rounded-xl bg-slate-100 text-slate-700">
                       <Layers className="w-4 h-4" />
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-3xl font-black text-slate-900">S/ 30</span>
-                    <span className="text-xs font-semibold text-slate-500">/ {language === 'es' ? 'mes' : 'month'}</span>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className="text-3xl sm:text-4xl font-black text-slate-900">S/ 20</span>
+                    <span className="text-xs font-bold text-slate-500">/ {t('plan.month_single', 'mes')}</span>
                   </div>
 
-                  <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  {/* Resumen de Tiempo y Costo para Estándar */}
+                  <div className="mb-4 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                    <div className="flex items-center justify-between font-bold text-slate-800">
+                      <span>{t('plan.months_to_contract', 'Meses contratados:')}</span>
+                      <span className="font-mono text-indigo-700">{selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-600 text-[11px] mt-1">
+                      <span>Subtotal ({selectedMonths} x S/ 20):</span>
+                      <span className="font-mono">S/ {standardPricing.subtotal.toFixed(2)}</span>
+                    </div>
+                    {standardPricing.discountPct > 0 && (
+                      <div className="flex items-center justify-between text-emerald-700 font-bold text-[11px] mt-0.5">
+                        <span>Descuento (-{standardPricing.discountPct}%):</span>
+                        <span className="font-mono">- S/ {standardPricing.discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between font-black text-slate-900 border-t border-slate-200 pt-1.5 mt-1.5">
+                      <span>Total Estándar:</span>
+                      <span className="font-mono text-indigo-950 text-sm">S/ {standardPricing.total.toFixed(2)} PEN</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-600 mb-4 leading-relaxed">
                     {language === 'es'
-                      ? 'Ideal para diagnósticos periciales básicos, censo de cargas de baja tensión y tableros bajo normativa CNE.'
-                      : 'Ideal for basic electrical audits, low voltage load census and panels under CNE / NEC regulations.'}
+                      ? 'Censo de cargas, tableros bajo CNE, puesta a tierra e informe oficial pericial CIP garantizado.'
+                      : 'Load survey, CNE electrical panels, grounding and official certified CIP technical report.'}
                   </p>
 
-                  <div className="space-y-2.5 pt-2 border-t border-slate-200/80">
-                    <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
-                      {language === 'es' ? 'Módulos Habilitados:' : 'Included Modules:'}
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      {language === 'es' ? 'Incluido en Plan Estándar:' : 'Included in Standard Plan:'}
                     </span>
                     {standardFeatures.map((feat, idx) => (
                       <div key={idx} className="flex items-start gap-2 text-xs text-slate-700">
@@ -151,31 +355,34 @@ export const SubscriptionModal: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-200">
+                <div className="mt-6 pt-3 border-t border-slate-200">
                   <button
                     type="button"
-                    disabled={subscriptionPlan === 'ESTANDAR'}
                     onClick={() => handleStartUpgrade('ESTANDAR')}
-                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      subscriptionPlan === 'ESTANDAR'
-                        ? 'bg-slate-200 text-slate-500 cursor-default'
+                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      subscriptionPlan === 'ESTANDAR' && selectedMonths === 1
+                        ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                         : 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
                     }`}
                   >
-                    {subscriptionPlan === 'ESTANDAR' ? '✓ Plan en Uso' : t('plan.activate_standard', 'Cambiar a Plan Estándar (S/ 30)')}
+                    <span>
+                      {subscriptionPlan === 'ESTANDAR' && selectedMonths === 1
+                        ? 'Extender Plan Estándar'
+                        : `Activar Plan Estándar (${selectedMonths}m · S/ ${standardPricing.total.toFixed(2)})`}
+                    </span>
                   </button>
                 </div>
               </div>
 
-              {/* PLAN PREMIUM (S/ 60) */}
-              <div className={`relative rounded-3xl p-6 border-2 transition-all flex flex-col justify-between ${
+              {/* PLAN PREMIUM (S/ 50/mes) */}
+              <div className={`relative rounded-3xl p-5 sm:p-6 border-2 transition-all flex flex-col justify-between ${
                 subscriptionPlan === 'PREMIUM'
                   ? 'border-amber-500 bg-amber-50/20 shadow-md ring-2 ring-amber-500/20'
                   : 'border-amber-400 bg-gradient-to-b from-amber-500/5 to-transparent hover:border-amber-500 shadow-sm'
               }`}>
                 <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[10px] font-black tracking-wider uppercase shadow-xs flex items-center gap-1">
                   <Sparkles className="w-3 h-3" />
-                  <span>{subscriptionPlan === 'PREMIUM' ? t('plan.current_active', 'Plan Activo') : 'Recomendado CIP'}</span>
+                  <span>{subscriptionPlan === 'PREMIUM' ? t('plan.current_active', 'Plan Activo Actual') : 'Recomendado CIP'}</span>
                 </div>
 
                 <div>
@@ -183,26 +390,48 @@ export const SubscriptionModal: React.FC = () => {
                     <span className="text-xs font-black uppercase tracking-wider text-amber-700">
                       {t('plan.premium_title', 'Plan Premium')}
                     </span>
-                    <span className="p-1 rounded-lg bg-amber-500/20 text-amber-700">
+                    <span className="p-1.5 rounded-xl bg-amber-500/20 text-amber-700">
                       <Zap className="w-4 h-4" />
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-3xl font-black text-slate-900">S/ 60</span>
-                    <span className="text-xs font-semibold text-slate-500">/ {language === 'es' ? 'mes' : 'month'}</span>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className="text-3xl sm:text-4xl font-black text-slate-900">S/ 50</span>
+                    <span className="text-xs font-bold text-slate-500">/ {t('plan.month_single', 'mes')}</span>
                   </div>
 
-                  <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                  {/* Resumen de Tiempo y Costo para Premium */}
+                  <div className="mb-4 p-2.5 rounded-xl bg-amber-50 border border-amber-300/80 text-xs">
+                    <div className="flex items-center justify-between font-bold text-amber-950">
+                      <span>{t('plan.months_to_contract', 'Meses contratados:')}</span>
+                      <span className="font-mono text-amber-900">{selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-600 text-[11px] mt-1">
+                      <span>Subtotal ({selectedMonths} x S/ 50):</span>
+                      <span className="font-mono">S/ {premiumPricing.subtotal.toFixed(2)}</span>
+                    </div>
+                    {premiumPricing.discountPct > 0 && (
+                      <div className="flex items-center justify-between text-emerald-800 font-bold text-[11px] mt-0.5">
+                        <span>Descuento (-{premiumPricing.discountPct}%):</span>
+                        <span className="font-mono">- S/ {premiumPricing.discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between font-black text-amber-950 border-t border-amber-300 pt-1.5 mt-1.5">
+                      <span>Total Premium:</span>
+                      <span className="font-mono text-amber-950 text-sm">S/ {premiumPricing.total.toFixed(2)} PEN</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-600 mb-4 leading-relaxed">
                     {language === 'es'
-                      ? 'Solución pericial completa con simulación solar fotovoltaica, banco de condensadores, luxometría, BOM e informe oficial certificado.'
-                      : 'Full engineering solution with solar PV simulation, capacitor bank sizing, lighting lux study, BOM and certified CIP report.'}
+                      ? 'Simulación solar fotovoltaica, banco de condensadores (cos φ), luxometría RNE, BOM y dictamen CIP.'
+                      : 'Solar PV simulation, capacitor bank sizing, lighting study, BOM, and certified CIP audit report.'}
                   </p>
 
-                  <div className="space-y-2.5 pt-2 border-t border-amber-200/80">
+                  <div className="space-y-2 pt-2 border-t border-amber-200">
                     <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                      <span>{language === 'es' ? 'Módulos Avanzados 100% Desbloqueados:' : 'Advanced Modules 100% Unlocked:'}</span>
+                      <span>{language === 'es' ? 'Módulos Avanzados Desbloqueados:' : 'Advanced Modules Unlocked:'}</span>
                     </span>
                     {premiumFeatures.map((feat, idx) => (
                       <div key={idx} className="flex items-start gap-2 text-xs text-slate-800">
@@ -213,28 +442,18 @@ export const SubscriptionModal: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-amber-200">
+                <div className="mt-6 pt-3 border-t border-amber-200">
                   <button
                     type="button"
-                    disabled={subscriptionPlan === 'PREMIUM'}
                     onClick={() => handleStartUpgrade('PREMIUM')}
-                    className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      subscriptionPlan === 'PREMIUM'
-                        ? 'bg-amber-100 text-amber-800 cursor-default'
-                        : 'bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-slate-950 shadow-md shadow-amber-500/20'
-                    }`}
+                    className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-slate-950 shadow-md shadow-amber-500/20"
                   >
-                    {subscriptionPlan === 'PREMIUM' ? (
-                      <>
-                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                        <span>✓ Plan Premium Activo</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>{t('plan.activate_premium', 'Activar Plan Premium (S/ 60)')}</span>
-                      </>
-                    )}
+                    <Sparkles className="w-4 h-4" />
+                    <span>
+                      {subscriptionPlan === 'PREMIUM' && selectedMonths === 1
+                        ? 'Extender Plan Premium'
+                        : `Activar Plan Premium (${selectedMonths}m · S/ ${premiumPricing.total.toFixed(2)})`}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -242,34 +461,98 @@ export const SubscriptionModal: React.FC = () => {
             </div>
           )}
 
+          {/* ========================================================================= */}
+          {/* PASO 2: PANTALLA DE PAGO & CONFIRMACIÓN CON VISUALIZACIÓN CLARA DE MESES   */}
+          {/* ========================================================================= */}
           {paymentStep === 'paying' && (
-            <div className="max-w-md mx-auto py-4 space-y-4">
+            <div className="max-w-lg mx-auto py-1 space-y-4">
               <div className="text-center space-y-1">
                 <span className="text-xs font-bold uppercase tracking-wider text-amber-600">
-                  {language === 'es' ? 'Confirmación de Suscripción' : 'Subscription Confirmation'}
+                  {t('plan.checkout_title', 'Confirmación & Activación de Suscripción')}
                 </span>
-                <h4 className="text-lg font-black text-slate-900">
-                  {selectedPlanToPay === 'PREMIUM' ? 'Plan Premium (S/ 60 / mes)' : 'Plan Estándar (S/ 30 / mes)'}
+                <h4 className="text-xl font-black text-slate-900">
+                  {selectedPlanToPay === 'PREMIUM' 
+                    ? `Plan Premium (S/ 50 / mes)`
+                    : `Plan Estándar (S/ 20 / mes)`}
                 </h4>
                 <p className="text-xs text-slate-500">
-                  {language === 'es'
-                    ? 'Seleccione su método de activación inmediata para habilitar los módulos en su cuenta'
-                    : 'Select your immediate activation method to enable modules on your account'}
+                  {t('plan.checkout_subtitle', 'Verifique la cantidad de meses elegidos, el descuento y el monto final en soles:')}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2">
+              {/* TARJETA DESTACADA: TIEMPO REQUERIDO DE LA PLATAFORMA WEB */}
+              <div className="bg-indigo-50/80 border-2 border-indigo-200 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-indigo-700" />
+                    <div>
+                      <span className="block text-xs font-bold text-slate-900">
+                        {t('plan.time_required', 'Tiempo de uso de la plataforma web:')}
+                      </span>
+                      <span className="text-[11px] text-slate-600">
+                        Válido hasta: <strong className="text-indigo-950 font-bold">{getExpirationDate(selectedMonths)}</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Stepper para cambiar/aumentar meses en el mismo checkout */}
+                  <div className="flex items-center bg-white border border-indigo-300 rounded-xl p-0.5 shadow-2xs">
+                    <button
+                      type="button"
+                      disabled={selectedMonths <= 1}
+                      onClick={() => setSelectedMonths(prev => Math.max(1, prev - 1))}
+                      className="p-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                      title="Menos meses"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="font-black text-xs px-2.5 text-indigo-950 font-mono">
+                      {selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={selectedMonths >= 12}
+                      onClick={() => setSelectedMonths(prev => Math.min(12, prev + 1))}
+                      className="p-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                      title="Más meses"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Pastillas de meses rápidos en el checkout */}
+                <div className="flex items-center gap-1 text-[10px] font-bold">
+                  {[1, 2, 3, 6, 12].map(m => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setSelectedMonths(m)}
+                      className={`flex-1 py-1 rounded-lg border text-center transition-all cursor-pointer ${
+                        selectedMonths === m
+                          ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {m}m {m >= 12 ? '(-9%)' : m >= 6 ? '(-6%)' : m >= 3 ? '(-3%)' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Selector de Métodos de Pago */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('yape')}
                   className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                     paymentMethod === 'yape'
-                      ? 'border-purple-600 bg-purple-50 text-purple-900 font-bold'
-                      : 'border-slate-200 bg-white text-slate-700'
+                      ? 'border-purple-600 bg-purple-50 text-purple-950 font-bold ring-1 ring-purple-500'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="block text-xs font-black">YAPE</span>
-                  <span className="text-[10px] text-slate-500">Billetera móvil</span>
+                  <span className="block text-xs font-black text-purple-900">YAPE</span>
+                  <span className="text-[10px] text-slate-500">Billetera Móvil BCP</span>
                 </button>
 
                 <button
@@ -277,12 +560,12 @@ export const SubscriptionModal: React.FC = () => {
                   onClick={() => setPaymentMethod('plin')}
                   className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                     paymentMethod === 'plin'
-                      ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold'
-                      : 'border-slate-200 bg-white text-slate-700'
+                      ? 'border-blue-600 bg-blue-50 text-blue-950 font-bold ring-1 ring-blue-500'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="block text-xs font-black">PLIN</span>
-                  <span className="text-[10px] text-slate-500">Billetera digital</span>
+                  <span className="block text-xs font-black text-blue-900">PLIN</span>
+                  <span className="text-[10px] text-slate-500">Interbank / BBVA / Scotiabank</span>
                 </button>
 
                 <button
@@ -290,12 +573,12 @@ export const SubscriptionModal: React.FC = () => {
                   onClick={() => setPaymentMethod('tarjeta')}
                   className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                     paymentMethod === 'tarjeta'
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold'
-                      : 'border-slate-200 bg-white text-slate-700'
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold ring-1 ring-emerald-500'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="block text-xs font-black">Tarjeta Débito / Crédito</span>
-                  <span className="text-[10px] text-slate-500">Visa / Mastercard</span>
+                  <span className="block text-xs font-black text-emerald-900">Tarjeta Débito / Crédito</span>
+                  <span className="text-[10px] text-slate-500">Visa / Mastercard / Amex</span>
                 </button>
 
                 <button
@@ -303,60 +586,94 @@ export const SubscriptionModal: React.FC = () => {
                   onClick={() => setPaymentMethod('transferencia')}
                   className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                     paymentMethod === 'transferencia'
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-900 font-bold'
-                      : 'border-slate-200 bg-white text-slate-700'
+                      ? 'border-amber-600 bg-amber-50 text-amber-950 font-bold ring-1 ring-amber-500'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="block text-xs font-black">Transferencia CIP</span>
-                  <span className="text-[10px] text-slate-500">BCP / BBVA / Interbank</span>
+                  <span className="block text-xs font-black text-amber-900">Transferencia CIP</span>
+                  <span className="text-[10px] text-slate-500">Cuenta Institucional CIP</span>
                 </button>
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 space-y-1">
-                <div className="flex justify-between font-medium">
-                  <span>Monto Total a Activar:</span>
+              {/* Desglose Completo y Preciso de Pago */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600">Plan contratado:</span>
                   <span className="font-bold text-slate-900">
-                    {selectedPlanToPay === 'PREMIUM' ? 'S/ 60.00 PEN' : 'S/ 30.00 PEN'}
+                    {selectedPlanToPay === 'PREMIUM' ? 'Plan Premium (S/ 50/mes)' : 'Plan Estándar (S/ 20/mes)'}
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-500 text-[11px]">
-                  <span>Facturación:</span>
-                  <span>Mensual recurrente · Sin permanencia</span>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600">Duración contratada:</span>
+                  <span className="font-mono font-bold text-indigo-700">
+                    {selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-600">Subtotal base ({selectedMonths}m x S/ {payingPricing.basePrice}):</span>
+                  <span className="font-semibold text-slate-800 font-mono">
+                    S/ {payingPricing.subtotal.toFixed(2)} PEN
+                  </span>
+                </div>
+
+                {payingPricing.discountPct > 0 && (
+                  <div className="flex justify-between items-center text-emerald-700 font-bold">
+                    <span>Descuento fidelidad ({payingPricing.discountPct}%):</span>
+                    <span className="font-mono">- S/ {payingPricing.discountAmount.toFixed(2)} PEN</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center font-medium pt-2 border-t border-slate-200 text-sm">
+                  <span className="font-black text-slate-900">{t('plan.total_to_pay', 'Monto Total a Activar:')}</span>
+                  <span className="font-black text-emerald-700 text-base font-mono">
+                    S/ {payingPricing.total.toFixed(2)} PEN
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-slate-500 text-[11px] pt-1">
+                  <span>Equivalente internacional aprox:</span>
+                  <span className="font-mono font-medium">${(payingPricing.total / 3.75).toFixed(2)} USD</span>
                 </div>
               </div>
 
+              {/* Botones de Acción */}
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setPaymentStep('compare')}
                   className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer"
                 >
-                  Volver a Planes
+                  {t('plan.btn_back', 'Volver a Comparar Planes')}
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmPayment}
                   className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <CreditCard className="w-3.5 h-3.5" />
-                  <span>Confirmar & Activar Ahora</span>
+                  <CreditCard className="w-4 h-4" />
+                  <span>{t('plan.btn_confirm', 'Confirmar & Activar Ahora')} ({selectedMonths}m)</span>
                 </button>
               </div>
             </div>
           )}
 
+          {/* ========================================================================= */}
+          {/* PASO 3: PANTALLA DE ÉXITO                                                 */}
+          {/* ========================================================================= */}
           {paymentStep === 'success' && (
             <div className="text-center py-8 space-y-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center animate-bounce">
-                <Check className="w-6 h-6 stroke-[3]" />
+              <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center animate-bounce">
+                <Check className="w-7 h-7 stroke-[3]" />
               </div>
-              <h4 className="text-base font-black text-slate-900">
-                {language === 'es' ? '¡Plan Activado con Éxito!' : 'Plan Successfully Activated!'}
+              <h4 className="text-lg font-black text-slate-900">
+                {t('plan.success_title', '¡Suscripción Activada Exitosamente!')}
               </h4>
               <p className="text-xs text-slate-600 max-w-sm mx-auto">
                 {language === 'es'
-                  ? 'Su cuenta ha sido actualizada. Todos los módulos y funciones seleccionadas están disponibles inmediatamente.'
-                  : 'Your account has been updated. All selected modules and functions are now available immediately.'}
+                  ? `Su cuenta ha sido actualizada con el ${selectedPlanToPay === 'PREMIUM' ? 'Plan Premium' : 'Plan Estándar'} por ${selectedMonths} mes(es). Todos los módulos están disponibles inmediatamente.`
+                  : `Your account has been updated with ${selectedMonths} month(s) of access.`}
               </p>
             </div>
           )}

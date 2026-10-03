@@ -11,10 +11,13 @@ import {
   Award,
   Sun,
   Moon,
-  Laptop
+  Laptop,
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail } from './firebase';
 import { UserSession } from '../../context/DiagnosticContext';
+import { lookupCIPRecord } from '../../utils/cipValidator';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: UserSession) => void;
@@ -104,12 +107,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       if (!existing) {
         const defaultAccounts: StoredAccount[] = [
           {
-            name: 'Ing. Fernando Benites Torres',
+            name: 'Ing. Víctor Fernando Becerra Terán',
             email: 'luxproc.11@gmail.com',
             password: 'password123',
             role: 'INGENIERO_CIP',
-            cipNumber: '178452',
-            avatarUrl: 'https://ui-avatars.com/api/?name=Fernando+Benites&background=0284c7&color=fff&size=128&bold=true'
+            cipNumber: '278034',
+            avatarUrl: 'https://ui-avatars.com/api/?name=Victor+Becerra&background=0284c7&color=fff&size=128&bold=true'
           }
         ];
         localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(defaultAccounts));
@@ -128,24 +131,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       const profile = await signInWithGoogle();
 
       if (profile && profile.email) {
-        const isFernando = 
-          profile.email.toLowerCase().includes('luxproc') || 
-          profile.email.toLowerCase().includes('fernando') ||
-          (profile.name && profile.name.toLowerCase().includes('fernando'));
+        const isMaster = 
+          profile.email.toLowerCase() === 'luxproc.11@gmail.com' ||
+          profile.email.toLowerCase().includes('luxproc');
+
+        const finalCip = isMaster ? '278034' : undefined;
+        const cipData = finalCip ? lookupCIPRecord(finalCip) : null;
 
         const session: UserSession = {
-          name: profile.name || (isFernando ? 'Ing. Fernando Benites Torres' : profile.email.split('@')[0]),
+          name: profile.name || (isMaster ? 'Ing. Víctor Fernando Becerra Terán' : profile.email.split('@')[0]),
           email: profile.email,
           role: 'INGENIERO_CIP',
-          cipNumber: isFernando ? '178452' : undefined,
+          cipNumber: finalCip,
+          specialty: cipData?.specialty || (isMaster ? 'Ingeniero Electrónico' : undefined),
+          professionalCollege: cipData?.college || (isMaster ? 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)' : undefined),
+          regionalCouncil: cipData?.regionalCouncil || (isMaster ? 'CD La Libertad (Trujillo)' : undefined),
+          chapter: cipData?.chapter || (isMaster ? 'Capítulo de Ingeniería Electrónica y Telecomunicaciones' : undefined),
           avatarUrl: profile.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || profile.email)}&background=0284c7&color=fff&size=128`,
           verifiedByGoogle: true,
+          isMasterUser: isMaster,
           loginAt: new Date().toISOString(),
           grantedPermissions: [
             'https://www.googleapis.com/auth/userinfo.email',
             'https://www.googleapis.com/auth/userinfo.profile',
             'openid',
-            'urn:cne:electrical-audit:signature'
+            'urn:cne:electrical-audit:signature',
+            ...(isMaster ? ['master:central-evaluations:read-write'] : [])
           ]
         };
 
@@ -218,7 +229,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         name: name.trim(),
         email: trimmedEmail,
         role: role,
-        cipNumber: role === 'INGENIERO_CIP' ? (cipNumber || '178452') : undefined,
+        cipNumber: role === 'INGENIERO_CIP' ? (cipNumber || '278034') : undefined,
         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(name.trim() || trimmedEmail)}&background=0284c7&color=fff&size=128&bold=true`,
         verifiedByGoogle: false,
         loginAt: new Date().toISOString(),
@@ -240,10 +251,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       let finalRole = role;
       let finalCip = cipNumber;
 
-      if (trimmedEmail.toLowerCase() === 'luxproc.11@gmail.com') {
-        finalName = 'Ing. Fernando Benites Torres';
+      const isMaster = trimmedEmail.toLowerCase() === 'luxproc.11@gmail.com';
+
+      if (isMaster) {
+        finalName = 'Ing. Víctor Fernando Becerra Terán';
         finalRole = 'INGENIERO_CIP';
-        finalCip = '178452';
+        finalCip = '278034';
       } else {
         try {
           const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
@@ -261,21 +274,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         }
       }
 
-      const isGoogleAccount = trimmedEmail.toLowerCase().includes('gmail.com') || trimmedEmail.toLowerCase().includes('luxproc');
+      const isGoogleAccount = isMaster || trimmedEmail.toLowerCase().includes('gmail.com') || trimmedEmail.toLowerCase().includes('luxproc');
+      const cipData = finalCip ? lookupCIPRecord(finalCip) : null;
 
       const session: UserSession = {
         name: finalName || trimmedEmail.split('@')[0],
         email: trimmedEmail,
         role: finalRole,
-        cipNumber: finalRole === 'INGENIERO_CIP' ? (finalCip || '178452') : undefined,
+        cipNumber: finalRole === 'INGENIERO_CIP' ? (finalCip || '278034') : undefined,
+        specialty: cipData?.specialty || (isMaster ? 'Ingeniero Electrónico' : undefined),
+        professionalCollege: cipData?.college || (isMaster ? 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)' : undefined),
+        regionalCouncil: cipData?.regionalCouncil || (isMaster ? 'CD La Libertad (Trujillo)' : undefined),
+        chapter: cipData?.chapter || (isMaster ? 'Capítulo de Ingeniería Electrónica y Telecomunicaciones' : undefined),
         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName || trimmedEmail)}&background=0284c7&color=fff&size=128&bold=true`,
         verifiedByGoogle: isGoogleAccount,
+        isMasterUser: isMaster,
         loginAt: new Date().toISOString(),
         grantedPermissions: [
           'https://www.googleapis.com/auth/userinfo.email',
           'https://www.googleapis.com/auth/userinfo.profile',
           'openid',
-          'urn:cne:electrical-audit:signature'
+          'urn:cne:electrical-audit:signature',
+          ...(isMaster ? ['master:central-evaluations:read-write'] : [])
         ]
       };
 
@@ -526,7 +546,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej. Ing. Fernando Benites Torres"
+                  placeholder="Ej. Ing. Víctor Fernando Becerra Terán"
                   className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-medium border transition-all ${
                     isDark
                       ? 'bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500'
@@ -595,7 +615,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     type="text"
                     value={cipNumber}
                     onChange={(e) => setCipNumber(e.target.value)}
-                    placeholder="Ej. 178452"
+                    placeholder="Ej. 278034"
                     className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-medium border transition-all ${
                       isDark
                         ? 'bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500'
@@ -658,6 +678,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             )}
           </button>
         </form>
+
+        {/* Acceso Rápido Usuario Maestro CIP (Validado por Google) */}
+        <div className={`mt-5 p-3.5 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
+          isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-950'
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="w-5 h-5 text-amber-500 shrink-0" />
+            <div>
+              <div className="flex items-center gap-1.5 font-bold">
+                <span>Usuario Maestro CIP</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-600 text-white font-mono uppercase">Google OK</span>
+              </div>
+              <span className="font-mono text-[11px] text-slate-500">luxproc.11@gmail.com</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail('luxproc.11@gmail.com');
+              setPassword('password123');
+              setAuthMode('login');
+            }}
+            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer shadow-2xs shrink-0"
+          >
+            Autocompletar
+          </button>
+        </div>
 
       </div>
 

@@ -26,6 +26,7 @@ export const TariffRecommendationCard: React.FC<TariffRecommendationCardProps> =
   const [showDetailedModal, setShowDetailedModal] = useState(false);
   const [selectedTariffForDetails, setSelectedTariffForDetails] = useState<TariffComparisonItem | null>(null);
   const [appliedFeedback, setAppliedFeedback] = useState<string | null>(null);
+  const [filterCategory, setFilterCategory] = useState<'ALL' | 'BT' | 'MT' | 'LIBRE'>('ALL');
 
   const evaluation = evaluatePeruvianTariffs(
     diagnostic,
@@ -34,27 +35,25 @@ export const TariffRecommendationCard: React.FC<TariffRecommendationCardProps> =
   );
 
   const handleApplyTariff = (tariffCode: string) => {
-    let newPrice = diagnostic.tariff?.activeEnergyPriceKwh || 0.75;
-    let newFixed = diagnostic.tariff?.fixedMonthlyChargeSoles || 5.0;
-    
-    if (tariffCode === 'BT5B') {
-      newPrice = 0.745;
-      newFixed = 4.80;
-    } else if (tariffCode === 'BT5A') {
-      newPrice = 0.65; // Tarifa ponderada efectiva estimada
-      newFixed = 5.60;
-    } else if (tariffCode === 'BT3') {
-      newPrice = 0.42;
-      newFixed = 8.90;
-    } else if (tariffCode === 'MT3') {
-      newPrice = 0.36;
-      newFixed = 14.50;
-    }
+    const tariffMap: Record<string, { price: number; fixed: number }> = {
+      'BT5B': { price: 0.745, fixed: 4.80 },
+      'BT5A': { price: 0.650, fixed: 5.60 },
+      'BT2':  { price: 0.520, fixed: 9.20 },
+      'BT3':  { price: 0.420, fixed: 8.90 },
+      'BT4':  { price: 0.440, fixed: 9.50 },
+      'BT6':  { price: 0.710, fixed: 3.90 },
+      'MT2':  { price: 0.340, fixed: 16.50 },
+      'MT3':  { price: 0.360, fixed: 14.50 },
+      'MT4':  { price: 0.350, fixed: 15.80 },
+      'LIBRE': { price: 0.327, fixed: 25.00 }
+    };
+
+    const tConfig = tariffMap[tariffCode] || { price: 0.75, fixed: 5.0 };
 
     updateTariff({
       tariffCode,
-      activeEnergyPriceKwh: newPrice,
-      fixedMonthlyChargeSoles: newFixed
+      activeEnergyPriceKwh: tConfig.price,
+      fixedMonthlyChargeSoles: tConfig.fixed
     });
 
     setAppliedFeedback(`¡Tarifa ${tariffCode} aplicada al proyecto con éxito! Los costos y proyecciones se han recalculado.`);
@@ -205,9 +204,70 @@ export const TariffRecommendationCard: React.FC<TariffRecommendationCardProps> =
         </div>
       )}
 
+      {/* Category Filter Tabs for All 10 OSINERGMIN Tariffs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-100 border border-slate-200 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => setFilterCategory('ALL')}
+            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+              filterCategory === 'ALL'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Todas ({evaluation.breakdown.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterCategory('BT')}
+            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+              filterCategory === 'BT'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Baja Tensión BT ({evaluation.breakdown.filter(i => i.voltageLevel === 'Baja Tensión (BT)').length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterCategory('MT')}
+            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+              filterCategory === 'MT'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Media Tensión MT ({evaluation.breakdown.filter(i => i.voltageLevel === 'Media Tensión (MT)').length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterCategory('LIBRE')}
+            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+              filterCategory === 'LIBRE'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Mercado Libre (1)
+          </button>
+        </div>
+
+        <div className="text-[11px] text-slate-500 font-medium">
+          Pliego Tarifario Oficial OSINERGMIN / Ley N° 25844 y Ley N° 28832
+        </div>
+      </div>
+
       {/* Grid of Tariff Comparisons */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {evaluation.breakdown.map((item) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {evaluation.breakdown
+          .filter(item => {
+            if (filterCategory === 'BT') return item.voltageLevel === 'Baja Tensión (BT)';
+            if (filterCategory === 'MT') return item.voltageLevel === 'Media Tensión (MT)';
+            if (filterCategory === 'LIBRE') return item.voltageLevel === 'Mercado Libre';
+            return true;
+          })
+          .map((item) => {
           const isSelected = item.isCurrent;
           const isBest = item.isRecommended;
 

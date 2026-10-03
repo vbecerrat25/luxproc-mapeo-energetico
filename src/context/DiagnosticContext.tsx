@@ -38,6 +38,14 @@ import { calculateSafetyIndex, calculateEfficiencyIndex, IndexEvaluationResult }
 import { generateSavingsOpportunities } from '../engine/calculosAhorro';
 import { generateBillOfMaterials } from '../engine/calculosBOM';
 import { logOut as firebaseLogOut } from '../components/auth/firebase';
+import { 
+  registerCompanyEvaluation, 
+  getGlobalCompanyEvaluations, 
+  exportMasterRegistryToCSV, 
+  isMasterUserEmail, 
+  GlobalCompanyEvaluation,
+  MASTER_ADMIN_EMAIL 
+} from '../utils/masterRegistryService';
 
 export interface UserSession {
   name: string;
@@ -46,8 +54,11 @@ export interface UserSession {
   cipNumber?: string;
   specialty?: string;
   professionalCollege?: string;
+  regionalCouncil?: string;
+  chapter?: string;
   avatarUrl?: string;
   verifiedByGoogle: boolean;
+  isMasterUser?: boolean;
   loginAt: string;
   grantedPermissions?: string[];
 }
@@ -137,6 +148,11 @@ interface DiagnosticContextType {
   isSubscriptionModalOpen: boolean;
   setIsSubscriptionModalOpen: (open: boolean) => void;
   isModulePremium: (tabId: string) => boolean;
+
+  // Usuario Maestro CIP & Padrón Global de Evaluaciones
+  isMasterUser: boolean;
+  globalEvaluations: GlobalCompanyEvaluation[];
+  refreshGlobalEvaluations: () => void;
 }
 
 export interface SavedProjectItem {
@@ -159,7 +175,7 @@ export interface SavedProjectItem {
   };
 }
 
-export function createBlankDiagnostic(engineerName: string = 'Ing. Fernando Benites Torres', cipNumber: string = '178452'): CompleteDiagnostic {
+export function createBlankDiagnostic(engineerName: string = 'Ing. Víctor Fernando Becerra Terán', cipNumber: string = '278034'): CompleteDiagnostic {
   const currentYear = new Date().getFullYear();
   const dateStr = new Date().toISOString().split('T')[0];
 
@@ -173,13 +189,13 @@ export function createBlankDiagnostic(engineerName: string = 'Ing. Fernando Beni
       ruc: '',
       responsibleEngineer: engineerName,
       cipNumber: cipNumber,
-      specialty: 'Ingeniero Mecánico Electricista',
-      professionalCollege: 'Colegio de Ingenieros del Perú (CIP)',
+      specialty: 'Ingeniero Electrónico',
+      professionalCollege: 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)',
       address: '',
-      city: 'Lima',
-      department: 'Lima',
-      province: 'Lima',
-      district: 'Lima',
+      city: 'Trujillo',
+      department: 'La Libertad',
+      province: 'Trujillo',
+      district: 'Trujillo',
       phone: '',
       email: '',
       installationType: 'comercio',
@@ -195,7 +211,7 @@ export function createBlankDiagnostic(engineerName: string = 'Ing. Fernando Beni
     tariff: {
       distributor: 'Luz del Sur',
       tariffCode: 'BT5B',
-      supplyVoltage: '220',
+      supplyVoltage: 220,
       phases: 'MONOFASICO',
       activeEnergyPriceKwh: 0.75,
       reactiveEnergyPenaltyPriceKvarh: 0.145,
@@ -283,6 +299,12 @@ function normalizeDiagnostic(raw: any): CompleteDiagnostic {
   };
 }
 
+const getUserProjectKey = (email?: string) => 
+  `e_diagnosis_project_${email ? email.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'guest'}`;
+
+const getUserSavedWorksKey = (email?: string) => 
+  `e_diagnosis_saved_works_${email ? email.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'guest'}`;
+
 export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<UserSession | null>(() => {
     try {
@@ -290,6 +312,22 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object' && parsed.email) {
+          if (
+            parsed.email.toLowerCase() === 'luxproc.11@gmail.com' ||
+            parsed.name?.includes('Benites') ||
+            parsed.cipNumber === '178452' ||
+            parsed.specialty?.includes('Mecánico Electricista')
+          ) {
+            parsed.name = 'Ing. Víctor Fernando Becerra Terán';
+            parsed.cipNumber = '278034';
+            parsed.specialty = 'Ingeniero Electrónico';
+            parsed.professionalCollege = 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)';
+            parsed.regionalCouncil = 'CD La Libertad (Trujillo)';
+            parsed.chapter = 'Capítulo de Ingeniería Electrónica y Telecomunicaciones';
+            try {
+              localStorage.setItem('e_diagnosis_user_session', JSON.stringify(parsed));
+            } catch {}
+          }
           return parsed as UserSession;
         }
       }
@@ -321,7 +359,6 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
       return updated;
     });
 
-    // Sincronizar simultáneamente con los datos generales del proyecto pericial
     setDiagnostic(prev => ({
       ...prev,
       generalData: {
@@ -347,30 +384,63 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, [currentUser]);
 
+  // Inicialización limpia por usuario: si el usuario ya tiene un proyecto en curso guardado, lo recupera;
+  // de lo contrario, la plataforma se inicializa 100% limpia en blanco para iniciar un nuevo proyecto.
   const [diagnostic, setDiagnostic] = useState<CompleteDiagnostic>(() => {
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const userKey = getUserProjectKey(currentUser?.email);
+      const saved = localStorage.getItem(userKey);
       if (saved) {
         return normalizeDiagnostic(JSON.parse(saved));
       }
     } catch {
       // Fallback
     }
-    return DEMO_PLANTA_INDUSTRIAL;
+    return createBlankDiagnostic(currentUser?.name, currentUser?.cipNumber);
   });
 
   const [activeTab, setActiveTab] = useState<string>('DASHBOARD');
   const [activeScenario, setActiveScenario] = useState<'ACTUAL' | 'PROPUESTO'>('ACTUAL');
   const [showNewProjectModal, setShowNewProjectModal] = useState<boolean>(false);
 
-  // Auto-save to localStorage
+  // Sincronizar espacio de trabajo cuando cambie el usuario que inicia sesión
+  useEffect(() => {
+    if (!currentUser) return;
+    try {
+      const userKey = getUserProjectKey(currentUser.email);
+      const saved = localStorage.getItem(userKey);
+      if (saved) {
+        setDiagnostic(normalizeDiagnostic(JSON.parse(saved)));
+      } else {
+        // Nueva sesión: plataforma limpia para generar un nuevo proyecto
+        setDiagnostic(createBlankDiagnostic(currentUser.name, currentUser.cipNumber));
+      }
+
+      // Cargar los trabajos guardados del usuario (máximo 2 proyectos)
+      const worksKey = getUserSavedWorksKey(currentUser.email);
+      const savedWorks = localStorage.getItem(worksKey);
+      if (savedWorks) {
+        const parsed = JSON.parse(savedWorks);
+        if (Array.isArray(parsed)) {
+          setSavedProjects(parsed.slice(0, 2));
+        }
+      } else {
+        setSavedProjects([]);
+      }
+    } catch (e) {
+      console.error('Error al sincronizar datos del usuario:', e);
+    }
+  }, [currentUser?.email]);
+
+  // Auto-guardado en localStorage vinculado a la sesión del usuario
   useEffect(() => {
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(diagnostic));
+      const userKey = getUserProjectKey(currentUser?.email);
+      localStorage.setItem(userKey, JSON.stringify(diagnostic));
     } catch (e) {
       console.error('Failed to save diagnostic in localStorage', e);
     }
-  }, [diagnostic]);
+  }, [diagnostic, currentUser?.email]);
 
   // 1. Compute Equipment with Individual Consumptions
   const computedEquipment = useMemo(() => {
@@ -977,6 +1047,173 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
     setActiveTab('EQUIPMENT');
   };
 
+  // Limpiar toda la plataforma web para generar un nuevo proyecto desde cero
+  const clearActiveWorkspace = () => {
+    const blank = createBlankDiagnostic(currentUser?.name, currentUser?.cipNumber);
+    setDiagnostic(blank);
+    try {
+      const userKey = getUserProjectKey(currentUser?.email);
+      localStorage.removeItem(userKey);
+      localStorage.setItem(userKey, JSON.stringify(blank));
+    } catch (e) {
+      console.error('Error al limpiar plataforma web:', e);
+    }
+    setActiveTab('dashboard');
+  };
+
+  // Gestión de Trabajos Realizados (Límite estricto de 2 proyectos completos con informes)
+  const [savedProjects, setSavedProjects] = useState<SavedProjectItem[]>(() => {
+    try {
+      const worksKey = getUserSavedWorksKey(currentUser?.email);
+      const saved = localStorage.getItem(worksKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return isMasterUserEmail(currentUser?.email) ? parsed : parsed.slice(0, 2);
+        }
+      }
+    } catch {
+      // Fallback
+    }
+    return [];
+  });
+
+  const isMasterUser = isMasterUserEmail(currentUser?.email);
+  const [globalEvaluations, setGlobalEvaluations] = useState<GlobalCompanyEvaluation[]>(getGlobalCompanyEvaluations);
+
+  const refreshGlobalEvaluations = () => {
+    setGlobalEvaluations(getGlobalCompanyEvaluations());
+  };
+
+  const saveCurrentProject = (customName?: string): { success: boolean; message: string } => {
+    const isMaster = isMasterUserEmail(currentUser?.email);
+    if (!isMaster && savedProjects.length >= 2) {
+      return {
+        success: false,
+        message: 'Límite alcanzado: la plataforma permite almacenar hasta 2 proyectos con sus informes. Elimine uno en "Trabajos Realizados" para liberar un espacio.'
+      };
+    }
+
+    const currentYear = new Date().getFullYear();
+    const projName = customName || 
+      diagnostic.generalData.companyName || 
+      diagnostic.generalData.clientName || 
+      `Proyecto Pericial ${diagnostic.generalData.installationType.toUpperCase()} (${currentYear})`;
+
+    const newSavedItem: SavedProjectItem = {
+      id: `saved-${Date.now()}`,
+      name: projName,
+      installationType: diagnostic.generalData.installationType,
+      savedAt: new Date().toISOString(),
+      clientName: diagnostic.generalData.clientName || diagnostic.generalData.companyName || 'Cliente Particular',
+      responsibleEngineer: diagnostic.generalData.responsibleEngineer || currentUser?.name || 'Ing. Víctor Fernando Becerra Terán',
+      cipNumber: diagnostic.generalData.cipNumber || currentUser?.cipNumber || '278034',
+      diagnostic: JSON.parse(JSON.stringify(diagnostic)),
+      summary: {
+        totalPowerKw: demandBalance?.installedPowerKw ?? 0,
+        monthlyKwh: equipmentSummary.totalMonthlyKwh ?? 0,
+        monthlyCostSoles: equipmentSummary.totalMonthlyCostSoles ?? 0,
+        safetyScore: safetyEvaluation.score ?? 0,
+        efficiencyScore: efficiencyEvaluation.score ?? 0,
+        equipmentCount: (diagnostic.equipment || []).length,
+        circuitsCount: (diagnostic.circuits || []).length
+      }
+    };
+
+    const updated = isMaster ? [newSavedItem, ...savedProjects] : [newSavedItem, ...savedProjects].slice(0, 2);
+    setSavedProjects(updated);
+    try {
+      const worksKey = getUserSavedWorksKey(currentUser?.email);
+      localStorage.setItem(worksKey, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error al guardar proyecto en trabajos realizados:', e);
+    }
+
+    // Registrar en el padrón global inmutable para el Usuario Maestro
+    try {
+      registerCompanyEvaluation({
+        createdByAccountEmail: currentUser?.email || 'cuenta.local@peru.com',
+        createdByAccountName: currentUser?.name || 'Usuario Registrado',
+        companyName: diagnostic.generalData.companyName || diagnostic.generalData.clientName || 'Empresa Evaluada',
+        ruc: diagnostic.generalData.ruc || '20000000001',
+        commercialActivity: diagnostic.generalData.economicActivity || 'Auditoría Energética CNE',
+        installationType: diagnostic.generalData.installationType,
+        department: diagnostic.generalData.department || 'Lima',
+        address: diagnostic.generalData.address || 'Lima, Perú',
+        date: diagnostic.generalData.date || new Date().toISOString().split('T')[0],
+        responsibleEngineer: diagnostic.generalData.responsibleEngineer || currentUser?.name || 'Ing. Víctor Fernando Becerra Terán',
+        cipNumber: diagnostic.generalData.cipNumber || currentUser?.cipNumber || '278034',
+        cipCouncil: diagnostic.generalData.professionalCollege || 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)',
+        cipSpecialty: diagnostic.generalData.specialty || 'Ingeniero Electrónico',
+        status: 'CULMINADO',
+        powerKw: demandBalance?.installedPowerKw ?? 0,
+        annualKwh: (equipmentSummary.totalMonthlyKwh ?? 0) * 12,
+        annualSavingsPen: (equipmentSummary.totalMonthlyCostSoles ?? 0) * 12 * 0.18,
+        safetyScoreCne: safetyEvaluation.score ?? 0,
+        equipmentCount: (diagnostic.equipment || []).length,
+        circuitsCount: (diagnostic.circuits || []).length,
+        tariffSupply: `${diagnostic.tariff?.tariffCode || 'BT5B'} / ${diagnostic.tariff?.supplyVoltage || 220}V ${diagnostic.tariff?.distributor || 'Luz del Sur'}`,
+        reportCode: diagnostic.generalData.diagnosticCode || `EDIAG-${Date.now().toString().slice(-4)}`,
+        fullDiagnostic: JSON.parse(JSON.stringify(diagnostic))
+      });
+      setGlobalEvaluations(getGlobalCompanyEvaluations());
+    } catch (err) {
+      console.error('Error al guardar en el registro global:', err);
+    }
+
+    return {
+      success: true,
+      message: '¡Proyecto guardado con éxito en Trabajos Realizados!'
+    };
+  };
+
+  const loadSavedProject = (projectId: string): boolean => {
+    const found = savedProjects.find(p => p.id === projectId);
+    if (!found) return false;
+    setDiagnostic(normalizeDiagnostic(found.diagnostic));
+    return true;
+  };
+
+  const deleteSavedProject = (projectId: string): boolean => {
+    const updated = savedProjects.filter(p => p.id !== projectId);
+    setSavedProjects(updated);
+    try {
+      const worksKey = getUserSavedWorksKey(currentUser?.email);
+      localStorage.setItem(worksKey, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error al eliminar proyecto de trabajos realizados:', e);
+    }
+    return true;
+  };
+
+  // Planes de Suscripción (Estándar S/ 30 vs Premium S/ 60)
+  const [subscriptionPlan, setSubscriptionPlanState] = useState<'ESTANDAR' | 'PREMIUM'>(() => {
+    try {
+      const saved = localStorage.getItem('e_diagnosis_subscription_plan');
+      if (saved === 'PREMIUM' || saved === 'ESTANDAR') return saved;
+    } catch {
+      // Fallback
+    }
+    return 'ESTANDAR';
+  });
+
+  const setSubscriptionPlan = (plan: 'ESTANDAR' | 'PREMIUM') => {
+    setSubscriptionPlanState(plan);
+    try {
+      localStorage.setItem('e_diagnosis_subscription_plan', plan);
+    } catch (e) {
+      console.error('Error al persistir plan de suscripción:', e);
+    }
+  };
+
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+
+  const isModulePremium = (tabId: string): boolean => {
+    // El Informe Oficial CIP está incluido en el Plan Estándar según solicitud del usuario
+    const premiumModules = ['powerfactor', 'lighting', 'solar', 'opportunities', 'bom'];
+    return premiumModules.includes((tabId || '').toLowerCase().replace(/_/g, ''));
+  };
+
   const importJson = (jsonString: string): boolean => {
     try {
       const parsed = JSON.parse(jsonString);
@@ -1048,10 +1285,23 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
         loadDemoComercio,
         loadDemoCalzado,
         createNewDiagnostic,
+        clearActiveWorkspace,
         importJson,
         exportJson,
         showNewProjectModal,
-        setShowNewProjectModal
+        setShowNewProjectModal,
+        savedProjects,
+        saveCurrentProject,
+        loadSavedProject,
+        deleteSavedProject,
+        subscriptionPlan,
+        setSubscriptionPlan,
+        isSubscriptionModalOpen,
+        setIsSubscriptionModalOpen,
+        isModulePremium,
+        isMasterUser,
+        globalEvaluations,
+        refreshGlobalEvaluations
       }}
     >
       {children}

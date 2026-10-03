@@ -5,8 +5,8 @@
   "targets": {
     "luxproc": {
       "hosting": {
-        "sitio-mapeo": [
-          "luxproc-mapeo-energetico"
+        "sitio-mapeo-energetico": [
+          "luxproc"
         ]
       }
     }

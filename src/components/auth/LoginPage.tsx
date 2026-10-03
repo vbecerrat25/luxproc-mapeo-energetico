@@ -17,6 +17,10 @@ export interface UserSession {
   email: string;
   role: 'INGENIERO_CIP' | 'AUDITOR_ENERGETICO' | 'CLIENTE';
   cipNumber?: string;
+  specialty?: string;
+  professionalCollege?: string;
+  regionalCouncil?: string;
+  chapter?: string;
   avatarUrl?: string;
   verifiedByGoogle: boolean;
   loginAt: string;
@@ -28,10 +32,10 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [name, setName] = useState('Ing. Fernando Benites Torres');
+  const [name, setName] = useState('Ing. Víctor Fernando Becerra Terán');
   const [email, setEmail] = useState('luxproc.11@gmail.com');
   const [role, setRole] = useState<'INGENIERO_CIP' | 'AUDITOR_ENERGETICO' | 'CLIENTE'>('INGENIERO_CIP');
-  const [cipNumber, setCipNumber] = useState('178452');
+  const [cipNumber, setCipNumber] = useState('278034');
   const [isLoading, setIsLoading] = useState(false);
   const [googleValidatingStep, setGoogleValidatingStep] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -50,13 +54,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
         setTimeout(() => {
           const userEmail = customEmail || email || 'luxproc.11@gmail.com';
-          const userName = name || 'Ing. Fernando Benites Torres';
+          const userName = name || 'Ing. Víctor Fernando Becerra Terán';
           
           const googleUser: UserSession = {
             name: userName,
             email: userEmail,
             role: role,
-            cipNumber: role === 'INGENIERO_CIP' ? (cipNumber || '178452') : undefined,
+            cipNumber: role === 'INGENIERO_CIP' ? (cipNumber || '278034') : undefined,
+            specialty: 'Ingeniero Electrónico',
+            professionalCollege: 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)',
+            regionalCouncil: 'CD La Libertad (Trujillo)',
+            chapter: 'Capítulo de Ingeniería Electrónica y Telecomunicaciones',
             avatarUrl: 'https://lh3.googleusercontent.com/a/default-user',
             verifiedByGoogle: true,
             loginAt: new Date().toISOString()
@@ -202,7 +210,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej. Ing. Fernando Benites"
+                  placeholder="Ej. Ing. Víctor Fernando Becerra Terán"
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder:text-slate-600 text-xs focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors"
                 />
               </div>
@@ -252,7 +260,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   type="text"
                   value={cipNumber}
                   onChange={(e) => setCipNumber(e.target.value)}
-                  placeholder="Ej. 178452"
+                  placeholder="Ej. 278034"
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder:text-slate-600 text-xs focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors"
                 />
               </div>
