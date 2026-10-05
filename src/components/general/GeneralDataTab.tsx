@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
 import { useDiagnostic } from '../../context/DiagnosticContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { 
   Building2, 
   MapPin, 
   UserCheck, 
   Zap, 
-  Receipt, 
-  Save, 
-  Layers, 
-  Clock, 
-  Info,
   Briefcase,
   Lock,
   CheckCircle2,
@@ -17,10 +13,14 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { TariffRecommendationCard } from '../tariff/TariffRecommendationCard';
-import { lookupCIPRecord, CIPRecord, CIP_REGIONAL_COUNCILS, CIP_SPECIALTIES } from '../../utils/cipValidator';
+import { lookupCIPRecord, CIPRecord, CIP_REGIONAL_COUNCILS } from '../../utils/cipValidator';
 
 export const GeneralDataTab: React.FC = () => {
   const { diagnostic, updateGeneralData, updateTariff, currentUser, updateUserProfile } = useDiagnostic();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string, pt: string) =>
+    language === 'en' ? en : language === 'pt' ? pt : es;
+
   const { generalData, tariff } = diagnostic;
   const [cipSearchInput, setCipSearchInput] = useState(generalData.cipNumber || currentUser?.cipNumber || '278034');
   const [cipSearchStatus, setCipSearchStatus] = useState<string | null>(null);
@@ -60,7 +60,13 @@ export const GeneralDataTab: React.FC = () => {
       }
       setCipSearchStatus(`✓ ${record.fullName} · ${record.regionalCouncil} · ${record.specialty}`);
     } else {
-      setCipSearchStatus('Número CIP no válido. Ingrese entre 5 y 6 dígitos numéricos.');
+      setCipSearchStatus(
+        tr(
+          'Número CIP no válido. Ingrese entre 5 y 6 dígitos numéricos.',
+          'Invalid CIP number. Please enter 5 or 6 numeric digits.',
+          'Número CIP inválido. Insira entre 5 e 6 dígitos numéricos.'
+        )
+      );
     }
   };
 
@@ -210,10 +216,18 @@ export const GeneralDataTab: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-xl font-black text-slate-900 font-display">
-            Datos Generales de la Instalación y Régimen Tarifario
+            {tr(
+              'Datos Generales de la Instalación y Régimen Tarifario',
+              'General Facility Data & Electrical Tariff Regime',
+              'Dados Gerais da Instalação e Regime Tarifário'
+            )}
           </h2>
           <p className="text-xs text-slate-500">
-            Información del titular, ubicación geográfica en Perú, acreditación técnica CIP y parámetros de suministro eléctrico
+            {tr(
+              'Información del titular, ubicación geográfica en Perú, acreditación técnica CIP y parámetros de suministro eléctrico',
+              'Client details, geographical location, CIP engineering accreditation, and electrical supply parameters',
+              'Informações do titular, localização geográfica, acreditação técnica CIP e parâmetros de fornecimento elétrico'
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -229,24 +243,30 @@ export const GeneralDataTab: React.FC = () => {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3 text-slate-900">
             <Building2 className="h-5 w-5 text-amber-600" />
-            <h3 className="text-sm font-bold">Identificación del Cliente y Entidad</h3>
+            <h3 className="text-sm font-bold">
+              {tr('Identificación del Cliente y Entidad', 'Client & Entity Identification', 'Identificação do Cliente e Entidade')}
+            </h3>
           </div>
 
           <div className="space-y-3 text-xs">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Razón Social / Nombre de la Empresa o Residencia</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                {tr('Razón Social / Nombre de la Empresa o Residencia', 'Company Name / Facility or Residence Name', 'Razão Social / Nome da Empresa ou Residência')}
+              </label>
               <input
                 type="text"
                 value={generalData.companyName || ''}
                 onChange={(e) => updateGeneralData({ companyName: e.target.value })}
-                placeholder="Ej. Calzados El Artesano S.A.C. / Residencia Familiar"
+                placeholder={tr('Ej. Calzados El Artesano S.A.C. / Residencia Familiar', 'e.g. Industrial Corp S.A.C. / Family Residence', 'Ex. Indústria S.A.C. / Residência Familiar')}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Nombre del Contacto / Titular</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Nombre del Contacto / Titular', 'Contact Name / Owner', 'Nome do Contato / Titular')}
+                </label>
                 <input
                   type="text"
                   value={generalData.clientName || ''}
@@ -257,12 +277,14 @@ export const GeneralDataTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">RUC / DNI (11 o 8 dígitos)</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('RUC / DNI (11 o 8 dígitos)', 'Tax ID / RUC / DNI', 'RUC / DNI / CNPJ')}
+                </label>
                 <input
                   type="text"
                   value={generalData.ruc || ''}
                   onChange={(e) => updateGeneralData({ ruc: e.target.value })}
-                  placeholder="Ej. 20608945123"
+                  placeholder="20608945123"
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -270,31 +292,35 @@ export const GeneralDataTab: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tipo de Instalación</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Tipo de Instalación', 'Installation Type', 'Tipo de Instalação')}
+                </label>
                 <select
                   value={generalData.installationType}
                   onChange={(e) => updateGeneralData({ installationType: e.target.value as any })}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none font-medium"
                 >
-                  <option value="industria">🏭 Planta Industrial en General</option>
-                  <option value="comercio">🏪 Local Comercial / Restaurante</option>
-                  <option value="vivienda">🏠 Vivienda Residencial</option>
-                  <option value="oficina">💼 Oficinas / Centro Corporativo</option>
-                  <option value="almacen">📦 Almacén / Centro Logístico</option>
-                  <option value="educativo">🎓 Centro Educativo / Universidad</option>
-                  <option value="salud">🏥 Centro de Salud / Clínica</option>
-                  <option value="institucion">🏛️ Entidad Institucional / Pública</option>
-                  <option value="calzado">👞 Sector Calzado / Marroquinería</option>
+                  <option value="industria">{tr('🏭 Planta Industrial en General', '🏭 General Industrial Plant', '🏭 Planta Industrial em Geral')}</option>
+                  <option value="comercio">{tr('🏪 Local Comercial / Restaurante', '🏪 Commercial Facility / Restaurant', '🏪 Estabelecimento Comercial / Restaurante')}</option>
+                  <option value="vivienda">{tr('🏠 Vivienda Residencial', '🏠 Residential Home', '🏠 Residência Familiar')}</option>
+                  <option value="oficina">{tr('💼 Oficinas / Centro Corporativo', '💼 Corporate Offices', '💼 Escritórios / Centro Corporativo')}</option>
+                  <option value="almacen">{tr('📦 Almacén / Centro Logístico', '📦 Warehouse / Logistics Center', '📦 Armazém / Centro Logístico')}</option>
+                  <option value="educativo">{tr('🎓 Centro Educativo / Universidad', '🎓 Educational Center / University', '🎓 Centro Educacional / Universidade')}</option>
+                  <option value="salud">{tr('🏥 Centro de Salud / Clínica', '🏥 Healthcare Center / Clinic', '🏥 Centro de Saúde / Clínica')}</option>
+                  <option value="institucion">{tr('🏛️ Entidad Institucional / Pública', '🏛️ Public / Institutional Entity', '🏛️ Entidade Institucional / Pública')}</option>
+                  <option value="calzado">{tr('👞 Sector Calzado / Marroquinería', '👞 Footwear / Leather Manufacturing', '👞 Setor Calçadista / Couro')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Actividad Económica Principal</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Actividad Económica Principal', 'Primary Economic Activity', 'Atividade Econômica Principal')}
+                </label>
                 <input
                   type="text"
                   value={generalData.economicActivity || ''}
                   onChange={(e) => updateGeneralData({ economicActivity: e.target.value })}
-                  placeholder="Ej. Fabricación de calzado de vestir"
+                  placeholder={tr('Ej. Fabricación de calzado de vestir', 'e.g. Industrial manufacturing', 'Ex. Manufatura industrial')}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -302,7 +328,9 @@ export const GeneralDataTab: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Teléfono / Celular</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Teléfono / Celular', 'Phone / Mobile', 'Telefone / Celular')}
+                </label>
                 <input
                   type="text"
                   value={generalData.phone || ''}
@@ -313,7 +341,9 @@ export const GeneralDataTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Correo Electrónico</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Correo Electrónico', 'Email Address', 'E-mail')}
+                </label>
                 <input
                   type="email"
                   value={generalData.email || ''}
@@ -332,14 +362,18 @@ export const GeneralDataTab: React.FC = () => {
             <div className="flex items-center gap-2 text-slate-900">
               <UserCheck className="h-5 w-5 text-emerald-600" />
               <div>
-                <h3 className="text-sm font-bold">Responsable Técnico Colegiado (CIP)</h3>
-                <p className="text-[11px] text-slate-500">Validación directa en el Padrón Nacional de Colegiados</p>
+                <h3 className="text-sm font-bold">
+                  {tr('Responsable Técnico Colegiado (CIP)', 'Licensed Responsible Engineer (CIP)', 'Responsável Técnico Registrado (CIP)')}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {tr('Validación directa en el Padrón Nacional de Colegiados', 'Direct validation in the Official National CIP Registry', 'Validação direta no Registro Nacional Oficial CIP')}
+                </p>
               </div>
             </div>
             {verifiedCIPData?.verified && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>CIP HABILITADO</span>
+                <span>{tr('CIP HABILITADO', 'CIP ACTIVE', 'CIP HABILITADO')}</span>
               </span>
             )}
           </div>
@@ -348,7 +382,11 @@ export const GeneralDataTab: React.FC = () => {
             {/* Buscador de CIP con Validación Oficial */}
             <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
               <label className="block font-bold text-slate-800 text-[11px] uppercase tracking-wider">
-                Búsqueda y Verificación Oficial de Colegiatura CIP:
+                {tr(
+                  'Búsqueda y Verificación Oficial de Colegiatura CIP:',
+                  'Official CIP License Search & Verification:',
+                  'Busca e Verificação Oficial de Registro CIP:'
+                )}
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -368,7 +406,7 @@ export const GeneralDataTab: React.FC = () => {
                         handlePerformCIPLookup(cipSearchInput);
                       }
                     }}
-                    placeholder="Ingrese N° de Registro CIP (ej: 278034, 215430, 98765...)"
+                    placeholder={tr('Ingrese N° de Registro CIP (5 o 6 dígitos)', 'Enter CIP Registration N° (5 or 6 digits)', 'Insira o N° de Registro CIP (5 ou 6 dígitos)')}
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-indigo-600 focus:outline-none shadow-2xs"
                   />
                 </div>
@@ -378,7 +416,7 @@ export const GeneralDataTab: React.FC = () => {
                   className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
                 >
                   <Search className="w-3.5 h-3.5" />
-                  <span>Validar CIP</span>
+                  <span>{tr('Validar CIP', 'Validate CIP', 'Validar CIP')}</span>
                 </button>
               </div>
 
@@ -388,8 +426,6 @@ export const GeneralDataTab: React.FC = () => {
                   <span>{cipSearchStatus}</span>
                 </p>
               )}
-
-              {/* Fin bloque CIP */}
             </div>
 
             {/* Sección Protegida: Datos del Colegiado Autocompletados y Blindados */}
@@ -397,19 +433,27 @@ export const GeneralDataTab: React.FC = () => {
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                   <Lock className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Datos Oficiales del Colegiado (Autocompletados y Blindados)</span>
+                  <span>
+                    {tr(
+                      'Datos Oficiales del Colegiado (Autocompletados y Blindados)',
+                      'Official Engineer Credentials (Auto-Filled & Locked)',
+                      'Dados Oficiais do Engenheiro (Preenchidos e Bloqueados)'
+                    )}
+                  </span>
                 </span>
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-                  Protegido Anti-Fraude
+                  {tr('Protegido Anti-Fraude', 'Anti-Fraud Protected', 'Protegido Antifraude')}
                 </span>
               </div>
 
               {/* Ingeniero Responsable */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block font-semibold text-slate-700 text-xs">Ingeniero Responsable Colegiado</label>
+                  <label className="block font-semibold text-slate-700 text-xs">
+                    {tr('Ingeniero Responsable Colegiado', 'Licensed Responsible Engineer', 'Engenheiro Responsável Titular')}
+                  </label>
                   <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" /> Autocompletado por CIP
+                    <Lock className="w-2.5 h-2.5" /> {tr('Autocompletado por CIP', 'Locked by CIP', 'Bloqueado pelo CIP')}
                   </span>
                 </div>
                 <input
@@ -425,9 +469,11 @@ export const GeneralDataTab: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block font-semibold text-slate-700 text-xs">Especialidad de Ingeniería CIP</label>
+                    <label className="block font-semibold text-slate-700 text-xs">
+                      {tr('Especialidad de Ingeniería CIP', 'CIP Engineering Specialty', 'Especialidade de Engenharia CIP')}
+                    </label>
                     <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                      <Lock className="w-2.5 h-2.5" /> Autocompletado por CIP
+                      <Lock className="w-2.5 h-2.5" /> {tr('Autocompletado por CIP', 'Locked by CIP', 'Bloqueado pelo CIP')}
                     </span>
                   </div>
                   <input
@@ -438,15 +484,17 @@ export const GeneralDataTab: React.FC = () => {
                     className="w-full rounded-lg border border-slate-300 bg-slate-100/90 px-3 py-2 text-xs font-bold text-slate-900 cursor-not-allowed select-none opacity-95 shadow-2xs"
                   />
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    ✓ Especialidad oficial certificada para refrendar peritajes
+                    ✓ {tr('Especialidad oficial certificada para refrendar peritajes', 'Official certified specialty for expert audits', 'Especialidade oficial certificada para laudos')}
                   </p>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block font-semibold text-slate-700 text-xs">Colegio / Consejo Departamental CIP</label>
+                    <label className="block font-semibold text-slate-700 text-xs">
+                      {tr('Colegio / Consejo Departamental CIP', 'CIP Regional Council', 'Conselho Departamental CIP')}
+                    </label>
                     <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                      <Lock className="w-2.5 h-2.5" /> Autocompletado por CIP
+                      <Lock className="w-2.5 h-2.5" /> {tr('Autocompletado por CIP', 'Locked by CIP', 'Bloqueado pelo CIP')}
                     </span>
                   </div>
                   <input
@@ -457,7 +505,7 @@ export const GeneralDataTab: React.FC = () => {
                     className="w-full rounded-lg border border-slate-300 bg-slate-100/90 px-3 py-2 text-xs font-bold text-slate-900 cursor-not-allowed select-none opacity-95 shadow-2xs"
                   />
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    ✓ Consejo Departamental con jurisdicción y habilitación vigente
+                    ✓ {tr('Consejo Departamental con jurisdicción y habilitación vigente', 'Regional Council with active license jurisdiction', 'Conselho Departamental com habilitação vigente')}
                   </p>
                 </div>
               </div>
@@ -466,7 +514,9 @@ export const GeneralDataTab: React.FC = () => {
             {/* Número CIP y Fecha de Inspección */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Número de Registro CIP Validado</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Número de Registro CIP Validado', 'Validated CIP Registration N°', 'N° de Registro CIP Validado')}
+                </label>
                 <input
                   type="text"
                   value={generalData.cipNumber || ''}
@@ -478,13 +528,15 @@ export const GeneralDataTab: React.FC = () => {
                       handlePerformCIPLookup(val);
                     }
                   }}
-                  placeholder="Ej. 278034"
+                  placeholder="278034"
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-indigo-900 bg-indigo-50/40 focus:border-indigo-600 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Fecha de Inspección en Campo</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Fecha de Inspección en Campo', 'Field Inspection Date', 'Data da Inspeção em Campo')}
+                </label>
                 <input
                   type="date"
                   value={generalData.date || ''}
@@ -499,19 +551,23 @@ export const GeneralDataTab: React.FC = () => {
               <div className="font-bold flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                  <span>Certificación Oficial de Peritaje Técnico CIP</span>
+                  <span>{tr('Certificación Oficial de Peritaje Técnico CIP', 'Official CIP Technical Audit Certification', 'Certificação Oficial de Perícia Técnica CIP')}</span>
                 </span>
                 <span className="text-[10px] font-mono bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded font-bold">
                   {verifiedCIPData?.status || 'HABILITADO'}
                 </span>
               </div>
               <p className="text-[11px] text-emerald-800 leading-relaxed">
-                {verifiedCIPData?.legalNotice || 'El informe técnico generado incorpora el formato reglamentario y datos blindados no modificables exigidos por el Colegio de Ingenieros del Perú (CIP), INDECI e ITSE.'}
+                {tr(
+                  'El informe técnico generado incorpora el formato reglamentario y datos blindados no modificables exigidos por el Colegio de Ingenieros del Perú (CIP), INDECI e ITSE.',
+                  'The generated technical report incorporates the regulatory format and locked anti-fraud credentials required by the College of Engineers of Peru (CIP), INDECI, and ITSE.',
+                  'O relatório técnico gerado incorpora o formato regulamentar e dados bloqueados exigidos pelo Colégio de Engenheiros do Peru (CIP), INDECI e ITSE.'
+                )}
               </p>
               {verifiedCIPData && (
                 <div className="pt-1 border-t border-emerald-200/70 flex flex-wrap items-center justify-between text-[10px] text-emerald-900 font-medium">
-                  <span>Capítulo: <strong>{verifiedCIPData.chapter}</strong></span>
-                  <span>Colegiado desde: <strong>{verifiedCIPData.registrationDate}</strong></span>
+                  <span>{tr('Capítulo:', 'Chapter:', 'Capítulo:')} <strong>{verifiedCIPData.chapter}</strong></span>
+                  <span>{tr('Colegiado desde:', 'Licensed since:', 'Registrado desde:')} <strong>{verifiedCIPData.registrationDate}</strong></span>
                 </div>
               )}
             </div>
@@ -522,12 +578,16 @@ export const GeneralDataTab: React.FC = () => {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3 text-slate-900">
             <MapPin className="h-5 w-5 text-blue-600" />
-            <h3 className="text-sm font-bold">Ubicación Geográfica y Régimen de Operación</h3>
+            <h3 className="text-sm font-bold">
+              {tr('Ubicación Geográfica y Régimen de Operación', 'Geographical Location & Operating Schedule', 'Localização Geográfica e Regime de Operação')}
+            </h3>
           </div>
 
           <div className="space-y-3 text-xs">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Dirección del Predio</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                {tr('Dirección del Predio', 'Facility Street Address', 'Endereço do Imóvel')}
+              </label>
               <input
                 type="text"
                 value={generalData.address || ''}
@@ -539,7 +599,9 @@ export const GeneralDataTab: React.FC = () => {
 
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Departamento</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Departamento', 'Department / State', 'Departamento / Estado')}
+                </label>
                 <input
                   type="text"
                   value={generalData.department || ''}
@@ -549,7 +611,9 @@ export const GeneralDataTab: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Provincia</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Provincia', 'Province', 'Província')}
+                </label>
                 <input
                   type="text"
                   value={generalData.province || ''}
@@ -559,7 +623,9 @@ export const GeneralDataTab: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Distrito</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Distrito', 'District', 'Distrito')}
+                </label>
                 <input
                   type="text"
                   value={generalData.district || ''}
@@ -572,7 +638,9 @@ export const GeneralDataTab: React.FC = () => {
 
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Área Techada (m²)</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Área Techada (m²)', 'Built Area (m²)', 'Área Construída (m²)')}
+                </label>
                 <input
                   type="number"
                   value={generalData.builtAreaM2 || 0}
@@ -581,7 +649,9 @@ export const GeneralDataTab: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Personal / Ocupantes</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Personal / Ocupantes', 'Staff / Occupants', 'Pessoal / Ocupantes')}
+                </label>
                 <input
                   type="number"
                   value={generalData.workerCount || 0}
@@ -590,7 +660,9 @@ export const GeneralDataTab: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Días Operación/Sem</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Días Operación/Sem', 'Operating Days/Wk', 'Dias Operação/Sem')}
+                </label>
                 <input
                   type="number"
                   value={generalData.workDaysPerWeek || 6}
@@ -601,7 +673,9 @@ export const GeneralDataTab: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Horario Habitual de Turnos</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                {tr('Horario Habitual de Turnos', 'Standard Shift Schedule', 'Horário Habitual de Turnos')}
+              </label>
               <input
                 type="text"
                 value={generalData.workSchedule || ''}
@@ -617,12 +691,16 @@ export const GeneralDataTab: React.FC = () => {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3 text-slate-900">
             <Zap className="h-5 w-5 text-amber-600" />
-            <h3 className="text-sm font-bold">Empresa Distribuidora y Régimen Tarifario</h3>
+            <h3 className="text-sm font-bold">
+              {tr('Empresa Distribuidora y Régimen Tarifario', 'Utility Distributor & Tariff Regime', 'Concessionária e Regime Tarifário')}
+            </h3>
           </div>
 
           <div className="space-y-3 text-xs">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Empresa Concesionaria Eléctrica</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                {tr('Empresa Concesionaria Eléctrica', 'Electrical Utility Company', 'Concessionária de Energia Elétrica')}
+              </label>
               <select
                 value={tariff.distributor}
                 onChange={(e) => updateTariff({ distributor: e.target.value })}
@@ -636,7 +714,9 @@ export const GeneralDataTab: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Opción Tarifaria</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Opción Tarifaria', 'Tariff Option', 'Opção Tarifária')}
+                </label>
                 <select
                   value={tariff.tariffCode}
                   onChange={(e) => updateTariff({ tariffCode: e.target.value })}
@@ -649,7 +729,9 @@ export const GeneralDataTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tensión Nominal / Fases</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Tensión Nominal / Fases', 'Nominal Voltage / Phases', 'Tensão Nominal / Fases')}
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <select
                     value={tariff.supplyVoltage}
@@ -665,8 +747,8 @@ export const GeneralDataTab: React.FC = () => {
                     onChange={(e) => updateTariff({ phases: e.target.value as any })}
                     className="rounded-lg border border-slate-300 px-2 py-2 text-xs font-medium focus:border-amber-500 focus:outline-none"
                   >
-                    <option value="MONOFASICO">1Ø (Monof.)</option>
-                    <option value="TRIFASICO">3Ø (Trif.)</option>
+                    <option value="MONOFASICO">1Ø ({tr('Monof.', '1-Phase', 'Monof.')})</option>
+                    <option value="TRIFASICO">3Ø ({tr('Trif.', '3-Phase', 'Trif.')})</option>
                   </select>
                 </div>
               </div>
@@ -674,7 +756,9 @@ export const GeneralDataTab: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Precio Energía Activa (S/. / kWh)</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Precio Energía Activa (S/. / kWh)', 'Active Energy Price (S/. / kWh)', 'Preço Energia Ativa (S/. / kWh)')}
+                </label>
                 <input
                   type="number"
                   step="0.001"
@@ -685,7 +769,9 @@ export const GeneralDataTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Penalidad Reactiva (S/. / kvarh)</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Penalidad Reactiva (S/. / kvarh)', 'Reactive Penalty (S/. / kvarh)', 'Penalidade Reativa (S/. / kvarh)')}
+                </label>
                 <input
                   type="number"
                   step="0.001"
@@ -698,7 +784,9 @@ export const GeneralDataTab: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Cargo Fijo Mensual (S/.)</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Cargo Fijo Mensual (S/.)', 'Monthly Fixed Charge (S/.)', 'Encargo Fixo Mensal (S/.)')}
+                </label>
                 <input
                   type="number"
                   step="0.10"
@@ -709,7 +797,9 @@ export const GeneralDataTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Cargo Potencia Contratada (S/./kW)</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Cargo Potencia Contratada (S/./kW)', 'Contracted Demand Charge (S/./kW)', 'Encargo Demanda Contratada (S/./kW)')}
+                </label>
                 <input
                   type="number"
                   step="0.50"
@@ -730,7 +820,13 @@ export const GeneralDataTab: React.FC = () => {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Zap className="h-4 w-4 text-indigo-600" />
-          <h3 className="text-sm font-bold text-slate-900">Análisis y Recomendación de Tarifa Conveniente (OSINERGMIN)</h3>
+          <h3 className="text-sm font-bold text-slate-900">
+            {tr(
+              'Análisis y Recomendación de Tarifa Conveniente (OSINERGMIN)',
+              'Optimal Tariff Analysis & Recommendation (OSINERGMIN)',
+              'Análise e Recomendação de Tarifa Conveniente (OSINERGMIN)'
+            )}
+          </h3>
         </div>
         <TariffRecommendationCard compact={false} />
       </div>
@@ -740,15 +836,25 @@ export const GeneralDataTab: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
             <Briefcase className="h-4 w-4 text-indigo-600" />
-            <span>Sectores y Áreas Operativas / Productivas de la Instalación</span>
+            <span>
+              {tr(
+                'Sectores y Áreas Operativas / Productivas de la Instalación',
+                'Operational & Productive Facility Areas / Zones',
+                'Setores e Áreas Operacionais / Produtivas da Instalação'
+              )}
+            </span>
           </div>
           <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full w-fit">
-            {(generalData.facilityProcessAreas || generalData.footwearProcessAreas || []).length} áreas seleccionadas
+            {(generalData.facilityProcessAreas || generalData.footwearProcessAreas || []).length} {tr('áreas seleccionadas', 'selected areas', 'áreas selecionadas')}
           </span>
         </div>
 
         <p className="text-xs text-slate-600">
-          Seleccione o agregue las áreas funcionales del proyecto para organizar el censo de cargas, circuitos en tableros y cálculos de iluminación según norma RNE EM.010:
+          {tr(
+            'Seleccione o agregue las áreas funcionales del proyecto para organizar el censo de cargas, circuitos en tableros y cálculos de iluminación según norma RNE EM.010:',
+            'Select or add functional project areas to organize load surveys, panel circuits, and RNE EM.010 lighting calculations:',
+            'Selecione ou adicione as áreas funcionais do projeto para organizar o censo de cargas, circuitos em quadros e cálculos de iluminação conforme RNE EM.010:'
+          )}
         </p>
 
         {/* Suggested Areas Chips */}
@@ -778,14 +884,14 @@ export const GeneralDataTab: React.FC = () => {
             type="text"
             value={newCustomArea}
             onChange={(e) => setNewCustomArea(e.target.value)}
-            placeholder="+ Agregar otra área personalizada..."
+            placeholder={tr('+ Agregar otra área personalizada...', '+ Add custom area...', '+ Adicionar outra área personalizada...')}
             className="flex-1 rounded-xl border border-slate-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none bg-slate-50/50"
           />
           <button
             type="submit"
             className="rounded-xl bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 transition-colors cursor-pointer"
           >
-            Agregar
+            {tr('Agregar', 'Add', 'Adicionar')}
           </button>
         </form>
       </div>
@@ -793,13 +899,21 @@ export const GeneralDataTab: React.FC = () => {
       {/* General Observations */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2">
         <label className="block text-xs font-bold text-slate-900">
-          Observaciones Generales y Antecedentes del Diagnóstico
+          {tr(
+            'Observaciones Generales y Antecedentes del Diagnóstico',
+            'General Observations & Diagnostic Background',
+            'Observações Gerais e Histórico do Diagnóstico'
+          )}
         </label>
         <textarea
           rows={3}
           value={generalData.observations || ''}
           onChange={(e) => updateGeneralData({ observations: e.target.value })}
-          placeholder="Ingrese comentarios sobre condiciones de suministro, antecedentes de fallas, inspecciones INDECI o ampliaciones proyectadas..."
+          placeholder={tr(
+            'Ingrese comentarios sobre condiciones de suministro, antecedentes de fallas, inspecciones INDECI o ampliaciones proyectadas...',
+            'Enter notes regarding supply conditions, fault history, safety inspections, or planned expansions...',
+            'Insira comentários sobre condições de fornecimento, histórico de falhas, inspeções de segurança ou expansões planejadas...'
+          )}
           className="w-full rounded-xl border border-slate-300 p-3 text-xs focus:border-amber-500 focus:outline-none"
         />
       </div>

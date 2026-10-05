@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { useDiagnostic } from '../../context/DiagnosticContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -8,6 +8,7 @@ import {
   Receipt, 
   Cpu, 
   SlidersHorizontal, 
+  Cable,
   ShieldAlert, 
   Activity, 
   SunMedium, 
@@ -17,20 +18,14 @@ import {
   Camera, 
   FileBadge,
   X,
-  FileSpreadsheet,
-  FileUp,
   Plus,
   LogOut,
   ShieldCheck,
   Gauge,
   FolderCheck,
-  Languages,
-  Sparkles,
-  CreditCard,
   Lock,
   Crown
 } from 'lucide-react';
-import { exportDiagnosticToExcel } from '../../utils/excelExporter';
 
 interface MobileNavDrawerProps {
   isOpen: boolean;
@@ -48,7 +43,6 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
     safetyEvaluation,
     efficiencyEvaluation,
     computedEquipment,
-    importJson,
     savedProjects,
     subscriptionPlan,
     setIsSubscriptionModalOpen,
@@ -56,7 +50,8 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
   } = useDiagnostic();
   const { t, language, setLanguage } = useLanguage();
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const tr = (es: string, en: string, pt: string) =>
+    language === 'en' ? en : language === 'pt' ? pt : es;
 
   const getAvatarUrl = (user: typeof currentUser) => {
     if (user?.avatarUrl && !user.avatarUrl.includes('unsplash.com')) {
@@ -74,6 +69,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
     { id: 'receipts', label: t('nav.receipts', 'Recibos vs Censo'), icon: Receipt, badge: `${(diagnostic.receipts || []).length}m`, isPremium: false },
     { id: 'equipment', label: t('nav.equipment', 'Censo de Cargas'), icon: Cpu, badge: `${(computedEquipment || []).length}`, isPremium: false },
     { id: 'circuits', label: t('nav.circuits', 'Tableros & CNE'), icon: SlidersHorizontal, badge: `${(diagnostic.circuits || []).length} cir`, isPremium: false },
+    { id: 'wiring', label: t('nav.wiring', 'Cableado & Llaves'), icon: Cable, badge: `${(diagnostic.wiringCircuits || []).length} cto`, isPremium: false },
     { id: 'grounding', label: t('nav.grounding', 'Puesta a Tierra'), icon: ShieldAlert, badge: diagnostic.grounding?.[0] ? `${diagnostic.grounding[0].measuredResistanceOhm || diagnostic.grounding[0].calculatedTheoreticalResistanceOhm || 0}Ω` : null, isPremium: false },
     { id: 'photos', label: t('nav.photos', 'Evidencia Fotos'), icon: Camera, badge: `${(diagnostic.photos || []).length}`, isPremium: false },
     { id: 'report', label: t('nav.report', 'Informe Oficial CIP'), icon: FileBadge, badge: 'PDF', isPremium: false },
@@ -91,30 +87,6 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
     { id: 'opportunities', label: t('nav.opportunities', 'Plan de Ahorro'), icon: PiggyBank, badge: 'PRO', isPremium: true },
     { id: 'bom', label: t('nav.bom', 'Lista Materiales'), icon: ListChecks, badge: 'BOM', isPremium: true }
   ];
-
-  const handleExportExcel = () => {
-    exportDiagnosticToExcel(diagnostic);
-    onClose();
-  };
-
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const text = evt.target?.result as string;
-      if (text) {
-        const success = importJson(text);
-        if (success) {
-          alert('¡Diagnóstico importado exitosamente!');
-          onClose();
-        } else {
-          alert('Error: formato de archivo inválido.');
-        }
-      }
-    };
-    reader.readAsText(file);
-  };
 
   const drawerContent = (
     <div 
@@ -201,7 +173,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
                   ? 'bg-amber-500 text-slate-950 shadow-2xs'
                   : 'bg-indigo-100 text-indigo-900'
               }`}>
-                {subscriptionPlan === 'PREMIUM' ? 'Plan Premium (S/ 50)' : 'Plan Estándar (S/ 20)'}
+                {subscriptionPlan === 'PREMIUM' ? t('header.plan_premium', 'Plan Premium (S/ 50)') : t('header.plan_standard', 'Plan Estándar (S/ 20)')}
               </span>
             </div>
             <button
@@ -212,18 +184,18 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
               }}
               className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 underline cursor-pointer"
             >
-              {language === 'es' ? 'Ver Planes' : 'View Plans'}
+              {tr('Ver Planes', 'View Plans', 'Ver Planos')}
             </button>
           </div>
 
           {/* Current Project Info */}
           <div className="p-3 border-b border-slate-100 bg-indigo-50/30">
             <div className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider flex items-center justify-between">
-              <span>{language === 'es' ? 'Proyecto Activo' : 'Active Project'}</span>
+              <span>{tr('Proyecto Activo', 'Active Project', 'Projeto Ativo')}</span>
               <span className="capitalize text-indigo-700 font-semibold">{diagnostic.generalData.installationType || 'industria'}</span>
             </div>
             <div className="text-xs font-bold text-slate-900 truncate mt-0.5">
-              {diagnostic.generalData.companyName || diagnostic.generalData.clientName || (language === 'es' ? 'Proyecto en Blanco' : 'Blank Project')}
+              {diagnostic.generalData.companyName || diagnostic.generalData.clientName || tr('Proyecto en Blanco', 'Blank Project', 'Projeto em Branco')}
             </div>
             <div className="text-[11px] text-slate-600 mt-1 flex justify-between">
               <span>{diagnostic.tariff?.supplyVoltage || 220}V {diagnostic.tariff?.phases === 'TRIFASICO' ? '3Ø' : '1Ø'}</span>
@@ -240,7 +212,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
               >
                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Seguridad CNE</span>
+                  <span>{tr('Seguridad CNE', 'NEC Safety', 'Segurança CNE')}</span>
                 </div>
                 <div className="text-sm font-bold text-slate-800 mt-0.5">
                   {safetyEvaluation.score}<span className="text-[10px] text-slate-400 font-normal">/100</span>
@@ -253,7 +225,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
               >
                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
                   <Gauge className="h-3.5 w-3.5 text-indigo-600" />
-                  <span>Eficiencia</span>
+                  <span>{tr('Eficiencia', 'Efficiency', 'Eficiência')}</span>
                 </div>
                 <div className="text-sm font-bold text-slate-800 mt-0.5">
                   {efficiencyEvaluation.score}<span className="text-[10px] text-slate-400 font-normal">/100</span>
@@ -265,7 +237,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
           {/* Navigation list */}
           <div className="flex-1 px-3 py-2 space-y-1">
             <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              {language === 'es' ? 'Módulos de Diagnóstico' : 'Diagnostic Modules'}
+              {tr('Módulos de Diagnóstico', 'Diagnostic Modules', 'Módulos de Diagnóstico')}
             </div>
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -305,7 +277,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
           </div>
         </div>
 
-        {/* Bottom Drawer Actions */}
+        {/* Bottom Drawer Actions (Without Excel / Import) */}
         <div className="p-3 border-t border-slate-100 bg-[#f8f9fb] space-y-2">
           <button
             onClick={() => {
@@ -317,30 +289,6 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
             <Plus className="h-4 w-4" />
             <span>{t('header.new_project', 'Nuevo Proyecto')}</span>
           </button>
-
-          <div className="flex items-center gap-2">
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleImportFile} 
-              accept=".json" 
-              className="hidden" 
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1 flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-            >
-              <FileUp className="h-3.5 w-3.5" />
-              <span>Importar</span>
-            </button>
-            <button
-              onClick={handleExportExcel}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
-              <span>Excel (.xlsx)</span>
-            </button>
-          </div>
 
           <button
             onClick={() => {
@@ -362,23 +310,26 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ isOpen, onClos
 
 export const MobileNavBar: React.FC = () => {
   const { activeTab, setActiveTab } = useDiagnostic();
-  const { t } = useLanguage();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string, pt: string) =>
+    language === 'en' ? en : language === 'pt' ? pt : es;
 
   const quickTabs = [
-    { id: 'dashboard', label: 'Panel', icon: LayoutDashboard },
-    { id: 'saved', label: 'Trabajos', icon: FolderCheck },
-    { id: 'general', label: 'Datos', icon: FileText },
-    { id: 'equipment', label: 'Censo', icon: Cpu },
-    { id: 'circuits', label: 'Tableros', icon: SlidersHorizontal },
-    { id: 'receipts', label: 'Recibos', icon: Receipt },
+    { id: 'dashboard', label: tr('Panel', 'Dashboard', 'Painel'), icon: LayoutDashboard },
+    { id: 'saved', label: tr('Trabajos', 'Projects', 'Projetos'), icon: FolderCheck },
+    { id: 'general', label: tr('Datos', 'General', 'Dados'), icon: FileText },
+    { id: 'equipment', label: tr('Censo', 'Loads', 'Cargas'), icon: Cpu },
+    { id: 'circuits', label: tr('Tableros', 'Panels', 'Quadros'), icon: SlidersHorizontal },
+    { id: 'wiring', label: tr('Cableado', 'Wiring', 'Fiação'), icon: Cable },
+    { id: 'receipts', label: tr('Recibos', 'Bills', 'Faturas'), icon: Receipt },
     { id: 'powerfactor', label: 'FP', icon: Activity },
-    { id: 'grounding', label: 'Tierra', icon: ShieldAlert },
-    { id: 'lighting', label: 'Luz', icon: Lightbulb },
+    { id: 'grounding', label: tr('Tierra', 'Ground', 'Terra'), icon: ShieldAlert },
+    { id: 'lighting', label: tr('Luz', 'Light', 'Luz'), icon: Lightbulb },
     { id: 'solar', label: 'Solar', icon: SunMedium },
-    { id: 'opportunities', label: 'Ahorro', icon: PiggyBank },
+    { id: 'opportunities', label: tr('Ahorro', 'Savings', 'Economia'), icon: PiggyBank },
     { id: 'bom', label: 'BOM', icon: ListChecks },
-    { id: 'photos', label: 'Fotos', icon: Camera },
-    { id: 'report', label: 'CIP', icon: FileBadge }
+    { id: 'photos', label: tr('Fotos', 'Photos', 'Fotos'), icon: Camera },
+    { id: 'report', label: tr('Informe', 'Report', 'Laudo'), icon: FileBadge }
   ];
 
   return (
@@ -406,3 +357,4 @@ export const MobileNavBar: React.FC = () => {
     </div>
   );
 };
+

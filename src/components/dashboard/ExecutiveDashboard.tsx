@@ -154,7 +154,7 @@ export const ExecutiveDashboard: React.FC = () => {
                 {t('dash.clean_banner_title', 'Espacio de Trabajo & Gestión de Proyectos')}
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                {savedProjects.length}/2 {language === 'es' ? 'trabajos guardados' : 'saved projects'}
+                {savedProjects.length}/2 {rt('trabajos guardados', 'saved projects', 'projetos salvos')}
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5 max-w-xl">
@@ -195,16 +195,16 @@ export const ExecutiveDashboard: React.FC = () => {
                 {getInstallationLabel(diagnostic.generalData.installationType)}
               </span>
               <span className="text-xs text-slate-400 font-medium">
-                Cód: {diagnostic.generalData.diagnosticCode || 'E-2026'}
+                {rt('Cód', 'Code', 'Cód')}: {diagnostic.generalData.diagnosticCode || 'E-2026'}
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-tight">
-              {diagnostic.generalData.companyName || diagnostic.generalData.clientName || 'Auditoría Energética & Eléctrica'}
+              {diagnostic.generalData.companyName || diagnostic.generalData.clientName || rt('Auditoría Energética & Eléctrica', 'Electrical & Energy Audit', 'Auditoria Energética & Elétrica')}
             </h2>
             <p className="text-slate-500 font-medium text-xs mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
               <span>📍 {diagnostic.generalData.district || diagnostic.generalData.city}, {diagnostic.generalData.department}</span>
-              <span>⚡ {diagnostic.tariff.supplyVoltage}V ({diagnostic.tariff.phases === 'TRIFASICO' ? 'Trifásico 3Ø' : 'Monofásico 1Ø'})</span>
-              <span>🏢 Tarifa {diagnostic.tariff.tariffCode}</span>
+              <span>⚡ {diagnostic.tariff.supplyVoltage}V ({diagnostic.tariff.phases === 'TRIFASICO' ? rt('Trifásico 3Ø', 'Three-Phase 3Ø', 'Trifásico 3Ø') : rt('Monofásico 1Ø', 'Single-Phase 1Ø', 'Monofásico 1Ø')})</span>
+              <span>🏢 {rt('Tarifa', 'Tariff', 'Tarifa')} {diagnostic.tariff.tariffCode}</span>
             </p>
           </div>
 
@@ -287,35 +287,45 @@ export const ExecutiveDashboard: React.FC = () => {
             <div className="flex items-center gap-3">
               <div className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></div>
               <p className="font-bold text-amber-900 text-sm">
-                {criticalObservationsCount === 0 ? 'Sin Riesgos Críticos' : `${criticalObservationsCount} Observaciones Críticas`}
+                {criticalObservationsCount === 0
+                  ? rt('Sin Riesgos Críticos', 'No Critical Risks', 'Sem Riscos Críticos')
+                  : `${criticalObservationsCount} ${rt('Observaciones Críticas', 'Critical Observations', 'Observações Críticas')}`}
               </p>
             </div>
             <span 
               onClick={() => setActiveTab('circuits')}
               className="text-amber-700 text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:underline"
             >
-              Auditar
+              {rt('Auditar', 'Audit', 'Auditar')}
             </span>
           </div>
 
           <div className="space-y-1.5 my-3 text-xs text-amber-900/80">
             {diagnostic.grounding[0]?.complianceStatus === 'NO_ADECUADO' && (
-              <p className="truncate">• Puesta a tierra supera 25Ω ({diagnostic.grounding[0].measuredResistanceOhm || 0}Ω)</p>
+              <p className="truncate">
+                • {rt(`Puesta a tierra supera 25Ω (${diagnostic.grounding[0].measuredResistanceOhm || 0}Ω)`, `Grounding exceeds 25Ω (${diagnostic.grounding[0].measuredResistanceOhm || 0}Ω)`, `Aterramento excede 25Ω (${diagnostic.grounding[0].measuredResistanceOhm || 0}Ω)`)}
+              </p>
             )}
             {(receiptsStats?.averagePowerFactor ?? 0.85) < 0.96 && (
-              <p className="truncate">• Factor de Potencia con penalidad (cosφ {(receiptsStats?.averagePowerFactor ?? 0.85).toFixed(2)})</p>
+              <p className="truncate">
+                • {rt(`Factor de Potencia con penalidad (cosφ ${(receiptsStats?.averagePowerFactor ?? 0.85).toFixed(2)})`, `Power Factor with penalty (cosφ ${(receiptsStats?.averagePowerFactor ?? 0.85).toFixed(2)})`, `Fator de Potência com penalidade (cosφ ${(receiptsStats?.averagePowerFactor ?? 0.85).toFixed(2)})`)}
+              </p>
             )}
             {diagnostic.circuits.some(c => !c.rcdExistingA) && (
-              <p className="truncate">• Circuitos sin protección diferencial 30mA humana</p>
+              <p className="truncate">
+                • {rt('Circuitos sin protección diferencial 30mA humana', 'Circuits without 30mA human RCD protection', 'Circuitos sem proteção diferencial DR 30mA')}
+              </p>
             )}
             {criticalObservationsCount === 0 && (
-              <p className="text-slate-600">Instalación con protecciones y puesta a tierra conformes al CNE.</p>
+              <p className="text-slate-600">
+                {rt('Instalación con protecciones y puesta a tierra conformes al CNE.', 'Installation protections and grounding compliant with electrical code.', 'Instalação com proteções e aterramento em conformidade com o CNE.')}
+              </p>
             )}
           </div>
 
           <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-[11px] font-bold text-amber-800">
-            <span>Prioridad Alta</span>
-            <span>Norma CNE 060-010</span>
+            <span>{rt('Prioridad Alta', 'High Priority', 'Prioridade Alta')}</span>
+            <span>{rt('Norma CNE 060-010', 'Standard CNE 060-010', 'Norma CNE 060-010')}</span>
           </div>
         </div>
 
@@ -324,20 +334,32 @@ export const ExecutiveDashboard: React.FC = () => {
           <div className="relative z-10">
             <div className="flex items-center justify-between">
               <span className="bg-white/20 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                Generación & Solar
+                {rt('Generación & Solar', 'Solar & Generation', 'Geração & Solar')}
               </span>
               <SunMedium className="h-5 w-5 text-amber-300" />
             </div>
-            <h3 className="text-xl font-bold mt-2">Potencial Fotovoltaico</h3>
+            <h3 className="text-xl font-bold mt-2">{rt('Potencial Fotovoltaico', 'Photovoltaic Potential', 'Potencial Fotovoltaico')}</h3>
             <p className="text-indigo-100 text-xs mt-0.5">
-              {diagnostic.solar ? `Sistema propuesto de ${diagnostic.solar.scenarioKwp} kWp con inversor ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 15} kW trifásico` : 'Evaluación solar para autogeneración limpia'}
+              {diagnostic.solar
+                ? rt(
+                    `Sistema propuesto de ${diagnostic.solar.scenarioKwp} kWp con inversor ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 15} kW trifásico`,
+                    `Proposed ${diagnostic.solar.scenarioKwp} kWp system with ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 15} kW three-phase inverter`,
+                    `Sistema proposto de ${diagnostic.solar.scenarioKwp} kWp com inversor ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 15} kW trifásico`
+                  )
+                : rt('Evaluación solar para autogeneración limpia', 'Solar evaluation for clean self-generation', 'Avaliação solar para autogeração limpa')}
             </p>
           </div>
 
           <div className="mt-4 relative z-10">
             <div className="flex justify-between mb-1.5 text-xs font-bold uppercase">
-              <span>{diagnostic.solar ? `${diagnostic.solar.scenarioKwp} kWp instalado` : '3.3 kWp sugerido'}</span>
-              <span onClick={() => setActiveTab('solar')} className="cursor-pointer underline">Ver Retorno</span>
+              <span>
+                {diagnostic.solar
+                  ? `${diagnostic.solar.scenarioKwp} kWp ${rt('instalado', 'installed', 'instalado')}`
+                  : `3.3 kWp ${rt('sugerido', 'suggested', 'sugerido')}`}
+              </span>
+              <span onClick={() => setActiveTab('solar')} className="cursor-pointer underline">
+                {rt('Ver Retorno', 'View ROI', 'Ver Retorno')}
+              </span>
             </div>
             <div className="h-2 bg-indigo-950/40 rounded-full overflow-hidden">
               <div className="bg-amber-300 h-full w-[70%]"></div>
@@ -349,22 +371,22 @@ export const ExecutiveDashboard: React.FC = () => {
 
         {/* Emerald Team / Status Bento Card (Col 3) */}
         <div className="md:col-span-3 bg-emerald-50 rounded-[32px] p-6 border border-emerald-100 flex flex-col justify-between shadow-xs">
-          <p className="text-emerald-900 font-bold text-sm">Estado de Índices</p>
+          <p className="text-emerald-900 font-bold text-sm">{rt('Estado de Índices', 'Index Status', 'Status dos Índices')}</p>
           <div className="space-y-2.5 my-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-emerald-900 font-medium">Seguridad Eléctrica</span>
+              <span className="text-xs text-emerald-900 font-medium">{rt('Seguridad Eléctrica', 'Electrical Safety', 'Segurança Elétrica')}</span>
               <span className="text-[10px] font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-lg">
                 {safetyEvaluation.score}/100
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-emerald-900 font-medium">Eficiencia Energética</span>
+              <span className="text-xs text-emerald-900 font-medium">{rt('Eficiencia Energética', 'Energy Efficiency', 'Eficiência Energética')}</span>
               <span className="text-[10px] font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-lg">
                 {efficiencyEvaluation.score}/100
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-emerald-900/70 font-medium">Pozo a Tierra</span>
+              <span className="text-xs text-emerald-900/70 font-medium">{rt('Pozo a Tierra', 'Grounding Pit', 'Poço de Terra')}</span>
               <span className="text-[10px] font-bold bg-white text-slate-700 px-2 py-0.5 rounded-lg border border-slate-100">
                 {diagnostic.grounding[0]?.measuredResistanceOhm || diagnostic.grounding[0]?.calculatedTheoreticalResistanceOhm || 15} Ω
               </span>
@@ -372,10 +394,10 @@ export const ExecutiveDashboard: React.FC = () => {
           </div>
           <div className="pt-3 border-t border-emerald-200/70">
             <button 
-              onClick={() => setActiveTab('circuits')}
-              className="w-full text-center text-xs font-bold text-emerald-800 hover:text-emerald-900"
+              onClick={() => setActiveTab('wiring')}
+              className="w-full text-center text-xs font-bold text-emerald-800 hover:text-emerald-900 cursor-pointer"
             >
-              Auditar Tableros →
+              {rt('Auditar Cableado & Llaves →', 'Audit Wiring & Breakers →', 'Auditar Cabeamento & Disjuntores →')}
             </button>
           </div>
         </div>
@@ -393,15 +415,19 @@ export const ExecutiveDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <span className="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                Curva de Facturación
+                {rt('Curva de Facturación', 'Billing Curve', 'Curva de Faturamento')}
               </span>
-              <h3 className="text-lg font-bold text-slate-900 mt-1">Historial de Recibos vs Censo</h3>
-              <p className="text-xs text-slate-500">Energía facturada mensual vs censo físico modelado</p>
+              <h3 className="text-lg font-bold text-slate-900 mt-1">
+                {rt('Historial de Recibos vs Censo', 'Billing History vs Load Census', 'Histórico de Faturas vs Censo')}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {rt('Energía facturada mensual vs censo físico modelado', 'Monthly billed energy vs modeled load census', 'Energia faturada mensal vs censo físico modelado')}
+              </p>
             </div>
             <span className={`text-xs font-bold px-3 py-1 rounded-full ${
               receiptComparison.accuracyLevel === 'ALTA_COINCIDENCIA' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'
             }`}>
-              Desviación: {receiptComparison.differencePercent}%
+              {rt('Desviación', 'Variance', 'Desvio')}: {receiptComparison.differencePercent}%
             </span>
           </div>
 
@@ -415,8 +441,8 @@ export const ExecutiveDashboard: React.FC = () => {
                   contentStyle={{ fontSize: '12px', borderRadius: '16px', border: '1px solid #f1f5f9', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                <Bar dataKey="FacturadoKwh" name="Facturado en Recibo" fill="#4f46e5" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="CensoCalculadoKwh" name="Calculado en Censo" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="FacturadoKwh" name={rt('Facturado en Recibo', 'Billed on Utility Receipt', 'Faturado na Conta')} fill="#4f46e5" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="CensoCalculadoKwh" name={rt('Calculado en Censo', 'Calculated in Census', 'Calculado no Censo')} fill="#f59e0b" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -432,15 +458,17 @@ export const ExecutiveDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <span className="bg-amber-50 text-amber-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                  Cargas Críticas
+                  {rt('Cargas Críticas', 'Critical Loads', 'Cargas Críticas')}
                 </span>
-                <h3 className="text-lg font-bold text-slate-900 mt-1">Top 5 Mayor Consumo</h3>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">
+                  {rt('Top 5 Mayor Consumo', 'Top 5 Energy Consumers', 'Top 5 Maior Consumo')}
+                </h3>
               </div>
               <button
                 onClick={() => setActiveTab('equipment')}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer"
               >
-                Ver todos ({computedEquipment.length}) →
+                {rt('Ver todos', 'View all', 'Ver todos')} ({computedEquipment.length}) →
               </button>
             </div>
 
@@ -461,7 +489,7 @@ export const ExecutiveDashboard: React.FC = () => {
                           {item.name}
                         </div>
                         <div className="text-[11px] text-slate-500">
-                          {item.category} • {item.hoursPerDay}h/día
+                          {item.category} • {item.hoursPerDay}{rt('h/día', 'h/day', 'h/dia')}
                         </div>
                       </div>
                     </div>
@@ -481,9 +509,9 @@ export const ExecutiveDashboard: React.FC = () => {
           </div>
 
           <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500">
-            <span>Suma de 5 principales:</span>
+            <span>{rt('Suma de 5 principales:', 'Sum of top 5:', 'Soma dos 5 principais:')}</span>
             <span className="font-bold text-slate-900">
-              {Math.round(topConsumers.reduce((acc, c) => acc + (c.monthlyKwh || 0), 0)).toLocaleString()} kWh/mes
+              {Math.round(topConsumers.reduce((acc, c) => acc + (c.monthlyKwh || 0), 0)).toLocaleString()} kWh/{rt('mes', 'mo', 'mês')}
             </span>
           </div>
         </div>

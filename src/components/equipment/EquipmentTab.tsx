@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDiagnostic } from '../../context/DiagnosticContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { EquipmentRecord, EquipmentCategory, PowerUnit, ConfidenceLevel, OperatingMode } from '../../types';
 import { MetricCard } from '../shared/MetricCard';
 import { 
@@ -8,15 +9,12 @@ import {
   Trash2, 
   Edit3, 
   Search, 
-  Filter, 
   Zap, 
   Clock, 
-  CheckCircle2, 
-  AlertTriangle, 
   Activity,
   X 
 } from 'lucide-react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 export const EquipmentTab: React.FC = () => {
   const {
@@ -27,6 +25,10 @@ export const EquipmentTab: React.FC = () => {
     updateEquipment,
     deleteEquipment
   } = useDiagnostic();
+  const { language } = useLanguage();
+
+  const tr = (es: string, en: string, pt: string) =>
+    language === 'en' ? en : language === 'pt' ? pt : es;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODOS');
@@ -67,6 +69,30 @@ export const EquipmentTab: React.FC = () => {
     'Horno', 'Iluminación', 'Refrigeración', 'Climatización',
     'Computadora', 'Terma', 'Cocina eléctrica', 'Otro'
   ];
+
+  const translateCategory = (cat: string) => {
+    const map: Record<string, { en: string; pt: string }> = {
+      'Motor': { en: 'Electric Motor', pt: 'Motor Elétrico' },
+      'Compresor': { en: 'Air Compressor', pt: 'Compressor de Ar' },
+      'Bomba': { en: 'Water / Fluid Pump', pt: 'Bomba Hidráulica' },
+      'Extractor': { en: 'Exhaust Fan', pt: 'Exaustor / Ventilador' },
+      'Máquina de corte': { en: 'Cutting Machine', pt: 'Máquina de Corte' },
+      'Máquina de aparado': { en: 'Stitching Machine', pt: 'Máquina de Costura' },
+      'Máquina de prensado': { en: 'Pressing Machine', pt: 'Máquina de Prensagem' },
+      'Máquina de lijado': { en: 'Sanding / Finishing Machine', pt: 'Máquina de Lixamento' },
+      'Horno': { en: 'Industrial Oven / Heater', pt: 'Forno / Estufa Industrial' },
+      'Iluminación': { en: 'Lighting System', pt: 'Iluminação' },
+      'Refrigeración': { en: 'Refrigeration Unit', pt: 'Refrigeração' },
+      'Climatización': { en: 'HVAC / Air Conditioning', pt: 'Climatização / Ar Condicionado' },
+      'Computadora': { en: 'IT / Computers', pt: 'Computadores / TI' },
+      'Terma': { en: 'Water Heater', pt: 'Aquecedor de Água' },
+      'Cocina eléctrica': { en: 'Electric Stove / Cooking', pt: 'Fogão / Cozinha Elétrica' },
+      'Otro': { en: 'Other Load', pt: 'Outro Equipamento' }
+    };
+    if (language === 'en') return map[cat]?.en || cat;
+    if (language === 'pt') return map[cat]?.pt || cat;
+    return cat;
+  };
 
   // Distinct areas from equipment
   const distinctAreas = Array.from(new Set((diagnostic?.equipment || []).map(e => e.areaTag || 'General'))).filter(Boolean);
@@ -153,7 +179,7 @@ export const EquipmentTab: React.FC = () => {
   const pieColors = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#64748b', '#14b8a6', '#e11d48'];
   const categoriesList = equipmentSummary?.categoryBreakdown || equipmentSummary?.byCategory || [];
   const pieData = categoriesList.map((cat, idx) => ({
-    name: cat.category,
+    name: translateCategory(cat.category),
     value: Math.round(cat.monthlyKwh),
     color: pieColors[idx % pieColors.length]
   }));
@@ -165,55 +191,59 @@ export const EquipmentTab: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-xl font-black text-slate-900 font-display">
-            Censo Exhaustivo de Cargas y Equipos
+            {tr('Censo Exhaustivo de Cargas y Equipos', 'Comprehensive Load & Equipment Census', 'Censo Exaustivo de Cargas e Equipamentos')}
           </h2>
           <p className="text-xs text-slate-500">
-            Inventario técnico, potencias, regímenes de operación, factores de carga y cálculo de consumo eléctrico
+            {tr(
+              'Inventario técnico, potencias, regímenes de operación, factores de carga y cálculo de consumo eléctrico',
+              'Technical inventory, power ratings, operating regimes, load factors, and electrical consumption calculations',
+              'Inventário técnico, potências, regimes de operação, fatores de carga e cálculo de consumo elétrico'
+            )}
           </p>
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 shadow-sm transition-colors"
+          className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 shadow-sm transition-colors cursor-pointer"
         >
           <Plus size={14} />
-          <span>Agregar Equipo</span>
+          <span>{tr('Agregar Equipo', 'Add Equipment', 'Adicionar Equipamento')}</span>
         </button>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <MetricCard
-          title="Potencia Total Instalada"
+          title={tr('Potencia Total Instalada', 'Total Installed Power', 'Potência Total Instalada')}
           value={equipmentSummary.totalInstalledPowerKw.toFixed(1)}
           unit="kW"
-          subtitle={`${computedEquipment.length} equipos censados`}
+          subtitle={`${computedEquipment.length} ${tr('equipos censados', 'recorded units', 'equipamentos recenseados')}`}
           highlightColor="indigo"
           icon={<Cpu size={18} />}
         />
         <MetricCard
-          title="Consumo Mensual Censo"
+          title={tr('Consumo Mensual Censo', 'Monthly Census Consumption', 'Consumo Mensal Censo')}
           value={equipmentSummary.totalMonthlyKwh.toLocaleString('es-PE', { maximumFractionDigits: 0 })}
-          unit="kWh/mes"
-          subtitle={`S/. ${equipmentSummary.totalMonthlyCostSoles.toLocaleString('es-PE', { maximumFractionDigits: 0 })}/mes`}
+          unit={tr('kWh/mes', 'kWh/mo', 'kWh/mês')}
+          subtitle={`S/. ${equipmentSummary.totalMonthlyCostSoles.toLocaleString('es-PE', { maximumFractionDigits: 0 })}/${tr('mes', 'mo', 'mês')}`}
           highlightColor="amber"
           icon={<Zap size={18} />}
         />
         <MetricCard
-          title="Consumo Anual Censo"
+          title={tr('Consumo Anual Censo', 'Annual Census Consumption', 'Consumo Anual Censo')}
           value={(equipmentSummary.totalMonthlyKwh * 12).toLocaleString('es-PE', { maximumFractionDigits: 0 })}
-          unit="kWh/año"
-          subtitle={`S/. ${(equipmentSummary.totalMonthlyCostSoles * 12).toLocaleString('es-PE', { maximumFractionDigits: 0 })}/año`}
+          unit={tr('kWh/año', 'kWh/yr', 'kWh/ano')}
+          subtitle={`S/. ${(equipmentSummary.totalMonthlyCostSoles * 12).toLocaleString('es-PE', { maximumFractionDigits: 0 })}/${tr('año', 'yr', 'ano')}`}
           highlightColor="blue"
           icon={<Activity size={18} />}
         />
         <MetricCard
-          title="Factor de Carga Promedio"
+          title={tr('Factor de Carga Promedio', 'Average Load Factor', 'Fator de Carga Médio')}
           value={
             computedEquipment.length > 0
               ? (computedEquipment.reduce((acc, e) => acc + (e.loadFactor || 0.8), 0) / computedEquipment.length).toFixed(2)
               : '0.80'
           }
-          subtitle="Ponderación de simultaneidad"
+          subtitle={tr('Ponderación de simultaneidad', 'Simultaneity weighting', 'Ponderação de simultaneidade')}
           highlightColor="emerald"
           icon={<Clock size={18} />}
         />
@@ -224,7 +254,9 @@ export const EquipmentTab: React.FC = () => {
         
         {/* Donut Chart */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2">
-          <h3 className="text-sm font-bold text-slate-900">Distribución de Consumo por Categoría</h3>
+          <h3 className="text-sm font-bold text-slate-900">
+            {tr('Distribución de Consumo por Categoría', 'Consumption Breakdown by Category', 'Distribuição de Consumo por Categoria')}
+          </h3>
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -242,7 +274,10 @@ export const EquipmentTab: React.FC = () => {
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(val: number) => [`${val.toLocaleString()} kWh/mes`, 'Consumo']}
+                  formatter={(val: number) => [
+                    `${val.toLocaleString()} ${tr('kWh/mes', 'kWh/mo', 'kWh/mês')}`,
+                    tr('Consumo', 'Consumption', 'Consumo')
+                  ]}
                   contentStyle={{ fontSize: '11px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                 />
               </PieChart>
@@ -261,45 +296,53 @@ export const EquipmentTab: React.FC = () => {
         {/* Filter Controls & Search */}
         <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-3">Filtros y Búsqueda de Inventario</h3>
+            <h3 className="text-sm font-bold text-slate-900 mb-3">
+              {tr('Filtros y Búsqueda de Inventario', 'Inventory Filters & Search', 'Filtros e Busca de Inventário')}
+            </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Buscar por nombre o marca</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  {tr('Buscar por nombre o marca', 'Search by name or brand', 'Buscar por nome ou marca')}
+                </label>
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    placeholder="Compresor, Motor, Horno..."
+                    placeholder={tr('Compresor, Motor, Horno...', 'Compressor, Motor, Oven...', 'Compressor, Motor, Forno...')}
                     className="w-full rounded-lg border border-slate-300 pl-8 pr-3 py-1.5 text-xs focus:border-amber-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Categoría</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  {tr('Categoría', 'Category', 'Categoria')}
+                </label>
                 <select
                   value={selectedCategory}
                   onChange={e => setSelectedCategory(e.target.value)}
                   className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:border-amber-500 focus:outline-none"
                 >
-                  <option value="TODOS">Todas las Categorías</option>
+                  <option value="TODOS">{tr('Todas las Categorías', 'All Categories', 'Todas as Categorias')}</option>
                   {CATEGORIES.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>{translateCategory(c)}</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Área / Proceso</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  {tr('Área / Proceso', 'Area / Process', 'Área / Processo')}
+                </label>
                 <select
                   value={selectedArea}
                   onChange={e => setSelectedArea(e.target.value)}
                   className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:border-amber-500 focus:outline-none"
                 >
-                  <option value="TODOS">Todas las Áreas</option>
+                  <option value="TODOS">{tr('Todas las Áreas', 'All Areas', 'Todas as Áreas')}</option>
                   {distinctAreas.map(a => (
                     <option key={a} value={a}>{a}</option>
                   ))}
@@ -309,9 +352,11 @@ export const EquipmentTab: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500 gap-1.5">
-            <span>Mostrando {filteredEquipment.length} de {computedEquipment.length} equipos</span>
+            <span>
+              {tr('Mostrando', 'Showing', 'Mostrando')} {filteredEquipment.length} {tr('de', 'of', 'de')} {computedEquipment.length} {tr('equipos', 'units', 'equipamentos')}
+            </span>
             <span className="font-semibold text-slate-700">
-              Consumo filtrado: {filteredEquipment.reduce((acc, e) => acc + (e.monthlyKwh || 0), 0).toFixed(0)} kWh/mes
+              {tr('Consumo filtrado:', 'Filtered consumption:', 'Consumo filtrado:')} {filteredEquipment.reduce((acc, e) => acc + (e.monthlyKwh || 0), 0).toFixed(0)} {tr('kWh/mes', 'kWh/mo', 'kWh/mês')}
             </span>
           </div>
         </div>
@@ -339,7 +384,7 @@ export const EquipmentTab: React.FC = () => {
                     <div>
                       <div className="font-bold text-slate-900 text-xs">{eq.name}</div>
                       <div className="text-[10px] text-slate-500">
-                        {eq.brand || 'Genérico'} {eq.model ? `• ${eq.model}` : ''}
+                        {eq.brand || tr('Genérico', 'Generic', 'Genérico')} {eq.model ? `• ${eq.model}` : ''}
                       </div>
                     </div>
                   </div>
@@ -350,25 +395,27 @@ export const EquipmentTab: React.FC = () => {
                         ? 'bg-amber-50 text-amber-700 border border-amber-200'
                         : 'bg-rose-50 text-rose-700 border border-rose-200')
                   }`}>
-                    {eq.state === 'OPERATIVO_OPTIMO' ? 'Óptimo' : (eq.state === 'OPERATIVO_REGULAR' ? 'Regular' : 'Crítico')}
+                    {eq.state === 'OPERATIVO_OPTIMO'
+                      ? tr('Óptimo', 'Optimal', 'Ótimo')
+                      : (eq.state === 'OPERATIVO_REGULAR' ? tr('Regular', 'Fair', 'Regular') : tr('Crítico', 'Critical', 'Crítico'))}
                   </span>
                 </div>
 
                 {/* Technical specifications grid */}
                 <div className="grid grid-cols-3 gap-2 bg-slate-50/70 p-2 rounded-xl text-[11px]">
                   <div>
-                    <div className="text-[9px] text-slate-400 font-medium uppercase">Potencia</div>
+                    <div className="text-[9px] text-slate-400 font-medium uppercase">{tr('Potencia', 'Power', 'Potência')}</div>
                     <div className="font-bold text-slate-900">{eq.power} {eq.powerUnit}</div>
                   </div>
                   <div>
-                    <div className="text-[9px] text-slate-400 font-medium uppercase">Tensión / I</div>
+                    <div className="text-[9px] text-slate-400 font-medium uppercase">{tr('Tensión / I', 'Voltage / I', 'Tensão / I')}</div>
                     <div className="font-semibold text-slate-800">
                       {eq.voltage}V • {eq.measuredCurrentA || eq.ratedCurrentA || 0}A
                     </div>
                   </div>
                   <div>
-                    <div className="text-[9px] text-slate-400 font-medium uppercase">Régimen</div>
-                    <div className="font-semibold text-slate-800">{eq.hoursPerDay}h/d • {eq.daysPerWeek}d/s</div>
+                    <div className="text-[9px] text-slate-400 font-medium uppercase">{tr('Régimen', 'Schedule', 'Regime')}</div>
+                    <div className="font-semibold text-slate-800">{eq.hoursPerDay}h/d • {eq.daysPerWeek}d/w</div>
                   </div>
                 </div>
 
@@ -376,28 +423,28 @@ export const EquipmentTab: React.FC = () => {
                 <div className="flex items-center justify-between text-xs pt-1">
                   <div>
                     <span className="font-mono font-bold text-slate-900">
-                      {Math.round(eq.monthlyKwh || 0).toLocaleString()} kWh/mes
+                      {Math.round(eq.monthlyKwh || 0).toLocaleString()} {tr('kWh/mes', 'kWh/mo', 'kWh/mês')}
                     </span>
                     <span className="text-[10px] text-slate-400 ml-1">
                       ({sharePct.toFixed(1)}%)
                     </span>
                     <div className="text-[11px] font-bold text-amber-900">
-                      S/. {Math.round(eq.monthlyCostSoles || 0).toLocaleString()}/mes
+                      S/. {Math.round(eq.monthlyCostSoles || 0).toLocaleString()}/{tr('mes', 'mo', 'mês')}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleOpenEdit(eq)}
-                      className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                     >
                       <Edit3 size={12} />
-                      <span>Editar</span>
+                      <span>{tr('Editar', 'Edit', 'Editar')}</span>
                     </button>
                     <button
                       onClick={() => deleteEquipment(eq.id)}
-                      className="p-1 text-slate-400 hover:text-rose-600 rounded-lg"
-                      title="Eliminar"
+                      className="p-1 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
+                      title={tr('Eliminar', 'Delete', 'Excluir')}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -409,7 +456,7 @@ export const EquipmentTab: React.FC = () => {
 
           {filteredEquipment.length === 0 && (
             <div className="p-8 text-center text-xs text-slate-400">
-              No se encontraron equipos que coincidan con los filtros.
+              {tr('No se encontraron equipos que coincidan con los filtros.', 'No equipment found matching the filters.', 'Nenhum equipamento encontrado para os filtros.')}
             </div>
           )}
         </div>
@@ -419,18 +466,18 @@ export const EquipmentTab: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
               <tr>
-                <th className="px-4 py-3">Código / Equipo</th>
-                <th className="px-4 py-3">Área / Proceso</th>
-                <th className="px-4 py-3">Cant.</th>
-                <th className="px-4 py-3">Potencia</th>
-                <th className="px-4 py-3">Tensión</th>
-                <th className="px-4 py-3">Corriente (A)</th>
-                <th className="px-4 py-3">Régimen Uso</th>
-                <th className="px-4 py-3">Factor Carga</th>
-                <th className="px-4 py-3">Consumo Mes</th>
-                <th className="px-4 py-3">Gasto Mes</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3 text-right">Acciones</th>
+                <th className="px-4 py-3">{tr('Código / Equipo', 'Code / Equipment', 'Código / Equipamento')}</th>
+                <th className="px-4 py-3">{tr('Área / Proceso', 'Area / Process', 'Área / Processo')}</th>
+                <th className="px-4 py-3">{tr('Cant.', 'Qty', 'Qtd.')}</th>
+                <th className="px-4 py-3">{tr('Potencia', 'Power', 'Potência')}</th>
+                <th className="px-4 py-3">{tr('Tensión', 'Voltage', 'Tensão')}</th>
+                <th className="px-4 py-3">{tr('Corriente (A)', 'Current (A)', 'Corrente (A)')}</th>
+                <th className="px-4 py-3">{tr('Régimen Uso', 'Usage Regime', 'Regime Uso')}</th>
+                <th className="px-4 py-3">{tr('Factor Carga', 'Load Factor', 'Fator Carga')}</th>
+                <th className="px-4 py-3">{tr('Consumo Mes', 'Monthly kWh', 'Consumo Mês')}</th>
+                <th className="px-4 py-3">{tr('Gasto Mes', 'Monthly Cost', 'Custo Mês')}</th>
+                <th className="px-4 py-3">{tr('Estado', 'Condition', 'Estado')}</th>
+                <th className="px-4 py-3 text-right">{tr('Acciones', 'Actions', 'Ações')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -478,7 +525,7 @@ export const EquipmentTab: React.FC = () => {
                     </td>
 
                     <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
-                      {eq.hoursPerDay}h/d • {eq.daysPerWeek}d/s
+                      {eq.hoursPerDay}h/d • {eq.daysPerWeek}d/w
                     </td>
 
                     <td className="px-4 py-3 font-mono text-slate-700">
@@ -504,22 +551,24 @@ export const EquipmentTab: React.FC = () => {
                             ? 'bg-amber-50 text-amber-700 border border-amber-200'
                             : 'bg-rose-50 text-rose-700 border border-rose-200')
                       }`}>
-                        {eq.state === 'OPERATIVO_OPTIMO' ? 'Óptimo' : (eq.state === 'OPERATIVO_REGULAR' ? 'Regular' : 'Crítico')}
+                        {eq.state === 'OPERATIVO_OPTIMO'
+                          ? tr('Óptimo', 'Optimal', 'Ótimo')
+                          : (eq.state === 'OPERATIVO_REGULAR' ? tr('Regular', 'Fair', 'Regular') : tr('Crítico', 'Critical', 'Crítico'))}
                       </span>
                     </td>
 
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button
                         onClick={() => handleOpenEdit(eq)}
-                        className="p-1 text-slate-500 hover:text-amber-600 mr-1"
-                        title="Editar equipo"
+                        className="p-1 text-slate-500 hover:text-amber-600 mr-1 cursor-pointer"
+                        title={tr('Editar equipo', 'Edit equipment', 'Editar equipamento')}
                       >
                         <Edit3 size={14} />
                       </button>
                       <button
                         onClick={() => deleteEquipment(eq.id)}
-                        className="p-1 text-slate-400 hover:text-rose-600"
-                        title="Eliminar equipo"
+                        className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                        title={tr('Eliminar equipo', 'Delete equipment', 'Excluir equipamento')}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -530,7 +579,7 @@ export const EquipmentTab: React.FC = () => {
               {filteredEquipment.length === 0 && (
                 <tr>
                   <td colSpan={12} className="px-4 py-8 text-center text-slate-400">
-                    No se encontraron equipos que coincidan con los filtros.
+                    {tr('No se encontraron equipos que coincidan con los filtros.', 'No equipment found matching the filters.', 'Nenhum equipamento encontrado para os filtros.')}
                   </td>
                 </tr>
               )}
@@ -551,17 +600,21 @@ export const EquipmentTab: React.FC = () => {
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">
-                    {editingId ? 'Editar Equipo / Máquina Censada' : 'Registrar Nuevo Equipo en el Censo'}
+                    {editingId
+                      ? tr('Editar Equipo / Máquina Censada', 'Edit Recorded Equipment / Machine', 'Editar Equipamento / Máquina')
+                      : tr('Registrar Nuevo Equipo en el Censo', 'Add New Equipment to Census', 'Registrar Novo Equipamento no Censo')}
                   </h3>
-                  <p className="text-[11px] text-slate-500 hidden sm:block">Parámetros de placa y medición para cálculo de consumo</p>
+                  <p className="text-[11px] text-slate-500 hidden sm:block">
+                    {tr('Parámetros de placa y medición para cálculo de consumo', 'Nameplate and field measurement parameters for energy calculation', 'Parâmetros de placa e medição para cálculo de consumo')}
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors shrink-0"
-                title="Cerrar ventana"
-                aria-label="Cerrar"
+                className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors shrink-0 cursor-pointer"
+                title={tr('Cerrar ventana', 'Close window', 'Fechar janela')}
+                aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -572,26 +625,30 @@ export const EquipmentTab: React.FC = () => {
               <div className="overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Nombre o Denominación del Equipo *</label>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      {tr('Nombre o Denominación del Equipo *', 'Equipment Name / Description *', 'Nome ou Denominação do Equipamento *')}
+                    </label>
                     <input
                       type="text"
                       value={formState.name}
                       onChange={e => setFormState({ ...formState, name: e.target.value })}
-                      placeholder="Ej. Balancín Hidráulico de Corte"
+                      placeholder={tr('Ej. Balancín Hidráulico de Corte', 'E.g. Hydraulic Cutting Press', 'Ex. Balancim Hidráulico de Corte')}
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Categoría de Carga *</label>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      {tr('Categoría de Carga *', 'Load Category *', 'Categoria da Carga *')}
+                    </label>
                     <select
                       value={formState.category}
                       onChange={e => setFormState({ ...formState, category: e.target.value as any })}
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                     >
                       {CATEGORIES.map(c => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>{translateCategory(c)}</option>
                       ))}
                     </select>
                   </div>
@@ -599,7 +656,7 @@ export const EquipmentTab: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Marca</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Marca', 'Brand', 'Marca')}</label>
                     <input
                       type="text"
                       value={formState.brand}
@@ -610,7 +667,7 @@ export const EquipmentTab: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Modelo / Serie</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Modelo / Serie', 'Model / Series', 'Modelo / Série')}</label>
                     <input
                       type="text"
                       value={formState.model}
@@ -621,12 +678,12 @@ export const EquipmentTab: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Área o Sector del Proceso</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Área o Sector del Proceso', 'Process Area or Sector', 'Área ou Setor do Processo')}</label>
                     <input
                       type="text"
                       value={formState.areaTag}
                       onChange={e => setFormState({ ...formState, areaTag: e.target.value })}
-                      placeholder="Ej. Planta Principal / Costura"
+                      placeholder={tr('Ej. Planta Principal / Costura', 'E.g. Main Floor / Assembly', 'Ex. Planta Principal / Costura')}
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                     />
                   </div>
@@ -635,7 +692,7 @@ export const EquipmentTab: React.FC = () => {
                 {/* Electrical specs box */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200/70">
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Cantidad</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Cantidad', 'Quantity', 'Quantidade')}</label>
                     <input
                       type="number"
                       min="1"
@@ -646,7 +703,7 @@ export const EquipmentTab: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Potencia Nominal</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Potencia Nominal', 'Rated Power', 'Potência Nominal')}</label>
                     <div className="flex gap-1">
                       <input
                         type="number"
@@ -670,7 +727,7 @@ export const EquipmentTab: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Tensión / Fases</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Tensión / Fases', 'Voltage / Phases', 'Tensão / Fases')}</label>
                     <div className="flex gap-1">
                       <select
                         value={formState.voltage}
@@ -693,7 +750,7 @@ export const EquipmentTab: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Corriente Medida (A)</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Corriente Medida (A)', 'Measured Current (A)', 'Corrente Medida (A)')}</label>
                     <input
                       type="number"
                       step="0.1"
@@ -707,7 +764,7 @@ export const EquipmentTab: React.FC = () => {
                 {/* Operating hours & load factor */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Horas / Día</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Horas / Día', 'Hours / Day', 'Horas / Dia')}</label>
                     <input
                       type="number"
                       step="0.5"
@@ -719,7 +776,7 @@ export const EquipmentTab: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Días / Semana</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Días / Semana', 'Days / Week', 'Dias / Semana')}</label>
                     <input
                       type="number"
                       min="1"
@@ -732,7 +789,7 @@ export const EquipmentTab: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Factor de Carga (0-1)</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Factor de Carga (0-1)', 'Load Factor (0-1)', 'Fator de Carga (0-1)')}</label>
                     <input
                       type="number"
                       step="0.05"
@@ -745,7 +802,7 @@ export const EquipmentTab: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">cos φ (FP)</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('cos φ (FP)', 'cos φ (PF)', 'cos φ (FP)')}</label>
                     <input
                       type="number"
                       step="0.01"
@@ -761,53 +818,53 @@ export const EquipmentTab: React.FC = () => {
                 {/* Status & Operating Mode */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Estado Operativo</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Estado Operativo', 'Operating Condition', 'Estado Operacional')}</label>
                     <select
                       value={formState.state}
                       onChange={e => setFormState({ ...formState, state: e.target.value as any })}
                       className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-amber-500 focus:outline-none"
                     >
-                      <option value="OPERATIVO_OPTIMO">Óptimo / Buen Estado</option>
-                      <option value="OPERATIVO_REGULAR">Regular / Desgaste Menor</option>
-                      <option value="CRITICO_REEMPLAZAR">Crítico / Sobrecarga / Reemplazo</option>
+                      <option value="OPERATIVO_OPTIMO">{tr('Óptimo / Buen Estado', 'Optimal / Good Condition', 'Ótimo / Bom Estado')}</option>
+                      <option value="OPERATIVO_REGULAR">{tr('Regular / Desgaste Menor', 'Fair / Minor Wear', 'Regular / Desgaste Leve')}</option>
+                      <option value="CRITICO_REEMPLAZAR">{tr('Crítico / Sobrecarga / Reemplazo', 'Critical / Overload / Replace', 'Crítico / Sobrecarga / Substituir')}</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Modo de Operación</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Modo de Operación', 'Operating Mode', 'Modo de Operação')}</label>
                     <select
                       value={formState.operatingMode}
                       onChange={e => setFormState({ ...formState, operatingMode: e.target.value as OperatingMode })}
                       className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-amber-500 focus:outline-none"
                     >
-                      <option value="CONTINUO">Continuo</option>
-                      <option value="INTERMITENTE">Intermitente / Ciclos</option>
-                      <option value="STANDBY">En espera / Standby</option>
-                      <option value="EMERGENCIA">Reserva / Emergencia</option>
+                      <option value="CONTINUO">{tr('Continuo', 'Continuous', 'Contínuo')}</option>
+                      <option value="INTERMITENTE">{tr('Intermitente / Ciclos', 'Intermittent / Cyclic', 'Intermitente / Ciclos')}</option>
+                      <option value="STANDBY">{tr('En espera / Standby', 'Standby', 'Em espera / Standby')}</option>
+                      <option value="EMERGENCIA">{tr('Reserva / Emergencia', 'Backup / Emergency', 'Reserva / Emergência')}</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Origen del Dato</label>
+                    <label className="block font-semibold text-slate-700 mb-1">{tr('Origen del Dato', 'Data Source', 'Origem do Dado')}</label>
                     <select
                       value={formState.confidence}
                       onChange={e => setFormState({ ...formState, confidence: e.target.value as ConfidenceLevel })}
                       className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-amber-500 focus:outline-none"
                     >
-                      <option value="MEDIDO">Medición en Campo (Pinza)</option>
-                      <option value="PLACA_FABRICANTE">Placa de Características</option>
-                      <option value="CALCULADO">Cálculo Estimado</option>
+                      <option value="MEDIDO">{tr('Medición en Campo (Pinza)', 'Field Clamp Measurement', 'Medição em Campo (Alicate)')}</option>
+                      <option value="PLACA_FABRICANTE">{tr('Placa de Características', 'Manufacturer Nameplate', 'Placa do Fabricante')}</option>
+                      <option value="CALCULADO">{tr('Cálculo Estimado', 'Estimated Calculation', 'Cálculo Estimado')}</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Observaciones Técnicas</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Observaciones Técnicas', 'Technical Observations', 'Observações Técnicas')}</label>
                   <input
                     type="text"
                     value={formState.observations}
                     onChange={e => setFormState({ ...formState, observations: e.target.value })}
-                    placeholder="Detalles sobre vibración, arrancador estrella-triángulo, variador, etc."
+                    placeholder={tr('Detalles sobre vibración, arrancador estrella-triángulo, variador, etc.', 'Details on vibration, star-delta starter, VFD, etc.', 'Detalhes sobre vibração, partida estrela-triângulo, inversor, etc.')}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                   />
                 </div>
@@ -820,13 +877,13 @@ export const EquipmentTab: React.FC = () => {
                   onClick={() => setShowAddModal(false)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
                 >
-                  Cancelar
+                  {tr('Cancelar', 'Cancel', 'Cancelar')}
                 </button>
                 <button
                   type="submit"
                   className="rounded-xl bg-amber-500 px-5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-xs cursor-pointer"
                 >
-                  {editingId ? 'Guardar Cambios' : 'Registrar Equipo'}
+                  {editingId ? tr('Guardar Cambios', 'Save Changes', 'Salvar Alterações') : tr('Registrar Equipo', 'Save Equipment', 'Registrar Equipamento')}
                 </button>
               </div>
             </form>

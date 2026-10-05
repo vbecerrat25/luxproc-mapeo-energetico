@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDiagnostic } from '../../context/DiagnosticContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { CircuitRecord, PanelRecord, WireInsulation, CircuitLoadType, WireMaterial } from '../../types';
 import { MetricCard } from '../shared/MetricCard';
 import { TrafficBadge } from '../shared/TrafficBadge';
@@ -10,11 +11,9 @@ import {
   Edit3, 
   ShieldCheck, 
   AlertTriangle, 
-  Wrench, 
   CheckCircle2, 
   Layers, 
   Zap, 
-  Sliders,
   Sparkles,
   X
 } from 'lucide-react';
@@ -27,17 +26,20 @@ export const CircuitsTab: React.FC = () => {
     addCircuit,
     updateCircuit,
     deleteCircuit,
-    addPanel,
-    updatePanel,
-    deletePanel
+    addPanel
   } = useDiagnostic();
+  const { language } = useLanguage();
+
+  const tr = (es: string, en: string, pt: string) =>
+    language === 'en' ? en : language === 'pt' ? pt : es;
 
   const [selectedPanelId, setSelectedPanelId] = useState<string>('ALL');
   const [showAddCircuitModal, setShowAddCircuitModal] = useState(false);
   const [editingCircuitId, setEditingCircuitId] = useState<string | null>(null);
 
   const [showAddPanelModal, setShowAddPanelModal] = useState(false);
-  const [editingPanelId, setEditingPanelId] = useState<string | null>(null);
+  const [, setEditingPanelId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const [circuitForm, setCircuitForm] = useState<Omit<CircuitRecord, 'id'>>({
     panelId: diagnostic.panels[0]?.id || '',
@@ -207,14 +209,12 @@ export const CircuitsTab: React.FC = () => {
     setShowAddCircuitModal(false);
   };
 
-  // One-click Auto-Fix for Non-compliant circuits
   const handleAutoFixAllCircuits = () => {
     diagnostic.circuits.forEach(c => {
       let updatedWire = c.wireSectionMm2;
-      let updatedBreaker = c.breakerRecommendedA;
-      let updatedRcd = c.rcdRecommendedA;
+      const updatedBreaker = c.breakerRecommendedA;
+      const updatedRcd = c.rcdRecommendedA;
 
-      // If voltage drop or ampacity failed, increase section
       if (c.wireStatus === 'NO_ADECUADO' || c.voltageDropStatus === 'NO_ADECUADO') {
         const sections = [2.5, 4.0, 6.0, 10.0, 16.0, 25.0, 35.0, 50.0];
         const currentIdx = sections.indexOf(c.wireSectionMm2);
@@ -230,20 +230,46 @@ export const CircuitsTab: React.FC = () => {
         rcdSensitivityMa: 30
       });
     });
-    alert('¡Optimizaciones normativas del CNE aplicadas exitosamente a todos los circuitos!');
+    setToastMsg(
+      tr(
+        '¡Optimizaciones normativas del CNE aplicadas exitosamente a todos los circuitos!',
+        'CNE regulatory optimizations successfully applied to all circuits!',
+        'Otimizações normativas aplicadas com sucesso a todos os circuitos!'
+      )
+    );
+    setTimeout(() => setToastMsg(null), 5000);
   };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+      {toastMsg && (
+        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-900 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            <span>{toastMsg}</span>
+          </div>
+          <button onClick={() => setToastMsg(null)} className="text-emerald-600 hover:text-emerald-800 cursor-pointer">
+            <X size={14} />
+          </button>
+        </div>
+      )}
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-xl font-black text-slate-900 font-display">
-            Tableros de Distribución y Circuitos Derivados (CNE)
+            {tr(
+              'Tableros de Distribución y Circuitos Derivados (CNE)',
+              'Distribution Switchboards & Branch Circuits (CNE)',
+              'Quadros de Distribuição e Circuitos Derivados (CNE)'
+            )}
           </h2>
           <p className="text-xs text-slate-500">
-            Verificación de ampacidad (Iz), caída de tensión (ΔV%), termomagnéticos (In) y protección diferencial de 30mA
+            {tr(
+              'Verificación de ampacidad (Iz), caída de tensión (ΔV%), termomagnéticos (In) y protección diferencial de 30mA',
+              'Verification of ampacity (Iz), voltage drop (ΔV%), circuit breakers (In), and 30mA RCD protection',
+              'Verificação de ampacidade (Iz), queda de tensão (ΔV%), disjuntores (In) e proteção diferencial de 30mA'
+            )}
           </p>
         </div>
 
@@ -251,11 +277,15 @@ export const CircuitsTab: React.FC = () => {
           {nonCompliantCount > 0 && (
             <button
               onClick={handleAutoFixAllCircuits}
-              className="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 shadow-sm transition-colors"
-              title="Ajustar calibres y protecciones a valores normativos del CNE"
+              className="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 shadow-sm transition-colors cursor-pointer"
+              title={tr(
+                'Ajustar calibres y protecciones a valores normativos del CNE',
+                'Adjust wire gauges and breakers to CNE regulatory standards',
+                'Ajustar bitolas e proteções aos valores normativos do CNE'
+              )}
             >
               <Sparkles size={14} className="text-amber-600" />
-              <span>Auto-Corregir Normativa CNE ({nonCompliantCount})</span>
+              <span>{tr('Auto-Corregir Normativa CNE', 'Auto-Fix CNE Compliance', 'Auto-Corrigir Norma CNE')} ({nonCompliantCount})</span>
             </button>
           )}
 
@@ -264,18 +294,18 @@ export const CircuitsTab: React.FC = () => {
               setEditingPanelId(null);
               setShowAddPanelModal(true);
             }}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
           >
             <Layers size={14} />
-            <span>+ Tablero</span>
+            <span>{tr('+ Tablero', '+ Switchboard', '+ Quadro')}</span>
           </button>
 
           <button
             onClick={handleOpenAddCircuit}
-            className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 shadow-sm transition-colors"
+            className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 shadow-sm transition-colors cursor-pointer"
           >
             <Plus size={14} />
-            <span>+ Circuito</span>
+            <span>{tr('+ Circuito', '+ Circuit', '+ Circuito')}</span>
           </button>
         </div>
       </div>
@@ -283,32 +313,32 @@ export const CircuitsTab: React.FC = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <MetricCard
-          title="Circuitos Registrados"
+          title={tr('Circuitos Registrados', 'Recorded Circuits', 'Circuitos Registrados')}
           value={(diagnostic.circuits || []).length}
-          subtitle={`${(diagnostic.panels || []).length} tableros en planta`}
+          subtitle={`${(diagnostic.panels || []).length} ${tr('tableros en planta', 'switchboards in facility', 'quadros na planta')}`}
           highlightColor="indigo"
           icon={<SlidersHorizontal size={18} />}
         />
         <MetricCard
-          title="Demanda Máxima Tablero"
+          title={tr('Demanda Máxima Tablero', 'Switchboard Peak Demand', 'Demanda Máxima do Quadro')}
           value={(demandBalance?.maximumDemandKw ?? demandBalance?.estimatedMaxDemandKw ?? 0).toFixed(1)}
           unit="kW"
-          subtitle={`Factor Simultaneidad: ${(((demandBalance?.coincidenceFactor ?? 0.8)) * 100).toFixed(0)}%`}
+          subtitle={`${tr('Factor Simultaneidad:', 'Simultaneity Factor:', 'Fator de Simultaneidade:')} ${(((demandBalance?.coincidenceFactor ?? 0.8)) * 100).toFixed(0)}%`}
           highlightColor="blue"
           icon={<Zap size={18} />}
         />
         <MetricCard
-          title="Reserva de Capacidad"
+          title={tr('Reserva de Capacidad', 'Capacity Reserve', 'Reserva de Capacidade')}
           value={(demandBalance?.capacityReserveKw ?? demandBalance?.reserveCapacityKw ?? 0).toFixed(1)}
           unit="kW"
-          subtitle={`${(demandBalance?.capacityReservePercent ?? demandBalance?.reserveCapacityPercent ?? 0).toFixed(1)}% margen disponible`}
+          subtitle={`${(demandBalance?.capacityReservePercent ?? demandBalance?.reserveCapacityPercent ?? 0).toFixed(1)}% ${tr('margen disponible', 'available margin', 'margem disponível')}`}
           highlightColor="emerald"
           icon={<CheckCircle2 size={18} />}
         />
         <MetricCard
-          title="Estado Normativo CNE"
-          value={nonCompliantCount === 0 ? '100% OK' : `${nonCompliantCount} Hallazgos`}
-          subtitle={nonCompliantCount === 0 ? 'Cumple CNE Utilización' : 'Requiere intervención'}
+          title={tr('Estado Normativo CNE', 'CNE Regulatory Status', 'Estado Normativo CNE')}
+          value={nonCompliantCount === 0 ? '100% OK' : `${nonCompliantCount} ${tr('Hallazgos', 'Findings', 'Achados')}`}
+          subtitle={nonCompliantCount === 0 ? tr('Cumple CNE Utilización', 'Complies with CNE Code', 'Cumpre Norma CNE') : tr('Requiere intervención', 'Requires intervention', 'Requer intervenção')}
           highlightColor={nonCompliantCount === 0 ? 'emerald' : 'rose'}
           icon={<ShieldCheck size={18} />}
         />
@@ -319,23 +349,25 @@ export const CircuitsTab: React.FC = () => {
 
       {/* Panels Selector Bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mr-2">Filtrar Tablero:</span>
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mr-2">
+          {tr('Filtrar Tablero:', 'Filter Switchboard:', 'Filtrar Quadro:')}
+        </span>
         <button
           onClick={() => setSelectedPanelId('ALL')}
-          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
             selectedPanelId === 'ALL'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
           }`}
         >
-          Todos los Tableros ({(diagnostic.circuits || []).length})
+          {tr('Todos los Tableros', 'All Switchboards', 'Todos os Quadros')} ({(diagnostic.circuits || []).length})
         </button>
 
         {(diagnostic.panels || []).map(p => (
           <button
             key={p.id}
             onClick={() => setSelectedPanelId(p.id)}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
               selectedPanelId === p.id
                 ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -356,17 +388,17 @@ export const CircuitsTab: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
               <tr>
-                <th className="px-3 py-3">Circuito</th>
-                <th className="px-3 py-3">Descripción de Carga</th>
-                <th className="px-3 py-3">Potencia</th>
-                <th className="px-3 py-3">Corriente Ib</th>
-                <th className="px-3 py-3">Conductor (mm²)</th>
-                <th className="px-3 py-3">Ampacidad Iz</th>
-                <th className="px-3 py-3">Caída Tensión</th>
-                <th className="px-3 py-3">Termomagnético</th>
-                <th className="px-3 py-3">Diferencial (RCD)</th>
-                <th className="px-3 py-3">Evaluación CNE</th>
-                <th className="px-3 py-3 text-right">Acciones</th>
+                <th className="px-3 py-3">{tr('Circuito', 'Circuit', 'Circuito')}</th>
+                <th className="px-3 py-3">{tr('Descripción de Carga', 'Load Description', 'Descrição da Carga')}</th>
+                <th className="px-3 py-3">{tr('Potencia', 'Power', 'Potência')}</th>
+                <th className="px-3 py-3">{tr('Corriente Ib', 'Current Ib', 'Corrente Ib')}</th>
+                <th className="px-3 py-3">{tr('Conductor (mm²)', 'Conductor (mm²)', 'Condutor (mm²)')}</th>
+                <th className="px-3 py-3">{tr('Ampacidad Iz', 'Ampacity Iz', 'Ampacidade Iz')}</th>
+                <th className="px-3 py-3">{tr('Caída Tensión', 'Voltage Drop', 'Queda de Tensão')}</th>
+                <th className="px-3 py-3">{tr('Termomagnético', 'Breaker (MCB)', 'Disjuntor (DTM)')}</th>
+                <th className="px-3 py-3">{tr('Diferencial (RCD)', 'RCD Protection', 'Diferencial (DR)')}</th>
+                <th className="px-3 py-3">{tr('Evaluación CNE', 'CNE Evaluation', 'Avaliação CNE')}</th>
+                <th className="px-3 py-3 text-right">{tr('Acciones', 'Actions', 'Ações')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -378,14 +410,12 @@ export const CircuitsTab: React.FC = () => {
 
                 return (
                   <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
-                    {/* Circuit Code */}
                     <td className="px-3 py-3">
                       <span className="font-mono font-bold bg-slate-100 px-2 py-1 rounded text-slate-800">
                         {c.circuitCode}
                       </span>
                     </td>
 
-                    {/* Description */}
                     <td className="px-3 py-3">
                       <div className="font-bold text-slate-900">{c.description}</div>
                       <div className="text-[10px] text-slate-500">
@@ -393,17 +423,14 @@ export const CircuitsTab: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Power */}
                     <td className="px-3 py-3 font-mono font-bold text-slate-800 whitespace-nowrap">
                       {(c.connectedPowerW ?? 0) >= 1000 ? `${((c.connectedPowerW ?? 0) / 1000).toFixed(2)} kW` : `${c.connectedPowerW ?? 0} W`}
                     </td>
 
-                    {/* Operating Current */}
                     <td className="px-3 py-3 font-mono font-bold text-slate-900">
                       {(c.calculatedCurrentA ?? 0).toFixed(1)} A
                     </td>
 
-                    {/* Conductor */}
                     <td className="px-3 py-3">
                       <div className="font-mono font-bold text-slate-900">
                         {c.wireSectionMm2} mm²
@@ -413,7 +440,6 @@ export const CircuitsTab: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Admissible Ampacity */}
                     <td className="px-3 py-3">
                       <div className="font-mono font-bold text-slate-800">
                         {c.wireAdmissibleAmpacityA ?? 0} A
@@ -421,22 +447,20 @@ export const CircuitsTab: React.FC = () => {
                       <TrafficBadge status={c.wireStatus} size="sm" showIcon={false} />
                     </td>
 
-                    {/* Voltage Drop */}
                     <td className="px-3 py-3 whitespace-nowrap">
                       <div className="font-mono font-bold text-slate-900">
                         {(c.voltageDropPercent ?? 0).toFixed(2)}%
                       </div>
                       <div className="text-[10px] text-slate-500">
-                        ({(c.voltageDropV ?? 0).toFixed(1)}V / máx {c.maxAllowedVoltageDropPercent ?? 2.5}%)
+                        ({(c.voltageDropV ?? 0).toFixed(1)}V / {tr('máx', 'max', 'máx')} {c.maxAllowedVoltageDropPercent ?? 2.5}%)
                       </div>
                       <TrafficBadge status={c.voltageDropStatus} size="sm" showIcon={false} />
                     </td>
 
-                    {/* Breaker */}
                     <td className="px-3 py-3 whitespace-nowrap">
                       <div className="font-mono font-bold text-slate-900">
                         {c.breakerExistingA ? `${c.breakerExistingA}A` : `${c.breakerRecommendedA}A`}
-                        <span className="ml-1 text-[10px] text-slate-500">Curva {c.breakerCurve}</span>
+                        <span className="ml-1 text-[10px] text-slate-500">{tr('Curva', 'Curve', 'Curva')} {c.breakerCurve}</span>
                       </div>
                       <div className="text-[10px] text-slate-500">
                         {c.breakerPoles}P • Icu {c.breakerBreakingKa || 10}kA
@@ -444,54 +468,54 @@ export const CircuitsTab: React.FC = () => {
                       <TrafficBadge status={c.breakerStatus} size="sm" showIcon={false} />
                     </td>
 
-                    {/* RCD */}
                     <td className="px-3 py-3 whitespace-nowrap">
                       {c.rcdExistingA ? (
                         <div>
                           <div className="font-mono font-bold text-slate-900">
                             {c.rcdExistingA}A / {c.rcdSensitivityMa}mA
                           </div>
-                          <div className="text-[10px] text-slate-500">Tipo {c.rcdType}</div>
+                          <div className="text-[10px] text-slate-500">{tr('Tipo', 'Type', 'Tipo')} {c.rcdType}</div>
                           <TrafficBadge status={c.rcdStatus} size="sm" showIcon={false} />
                         </div>
                       ) : (
                         <div>
                           <span className="text-[11px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                            Sin RCD 30mA
+                            {tr('Sin RCD 30mA', 'No 30mA RCD', 'Sem DR 30mA')}
                           </span>
                           <span className="block text-[10px] text-slate-400 mt-0.5">Rec: {c.rcdRecommendedA}A 30mA</span>
                         </div>
                       )}
                     </td>
 
-                    {/* CNE Overall Evaluation */}
                     <td className="px-3 py-3">
                       {(!isOverloaded && !isVdropBad && !isBreakerBad && !isRcdBad) ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
                           <CheckCircle2 size={12} />
-                          <span>Conforme CNE</span>
+                          <span>{tr('Conforme CNE', 'CNE Compliant', 'Conforme CNE')}</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200" title="Verificar capacidad o protecciones">
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200"
+                          title={tr('Verificar capacidad o protecciones', 'Check capacity or protections', 'Verificar capacidade ou proteções')}
+                        >
                           <AlertTriangle size={12} />
-                          <span>No Conforme</span>
+                          <span>{tr('No Conforme', 'Non-Compliant', 'Não Conforme')}</span>
                         </span>
                       )}
                     </td>
 
-                    {/* Actions */}
                     <td className="px-3 py-3 text-right whitespace-nowrap">
                       <button
                         onClick={() => handleOpenEditCircuit(c)}
-                        className="p-1 text-slate-500 hover:text-amber-600 mr-1"
-                        title="Editar circuito"
+                        className="p-1 text-slate-500 hover:text-amber-600 mr-1 cursor-pointer"
+                        title={tr('Editar circuito', 'Edit circuit', 'Editar circuito')}
                       >
                         <Edit3 size={14} />
                       </button>
                       <button
                         onClick={() => deleteCircuit(c.id)}
-                        className="p-1 text-slate-400 hover:text-rose-600"
-                        title="Eliminar circuito"
+                        className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"
+                        title={tr('Eliminar circuito', 'Delete circuit', 'Excluir circuito')}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -503,7 +527,11 @@ export const CircuitsTab: React.FC = () => {
               {filteredCircuits.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-4 py-8 text-center text-slate-400">
-                    No hay circuitos registrados en este tablero. Haga clic en "+ Circuito" para agregar.
+                    {tr(
+                      'No hay circuitos registrados en este tablero. Haga clic en "+ Circuito" para agregar.',
+                      'No circuits recorded in this switchboard. Click "+ Circuit" to add one.',
+                      'Nenhum circuito registrado neste quadro. Clique em "+ Circuito" para adicionar.'
+                    )}
                   </td>
                 </tr>
               )}
@@ -518,13 +546,15 @@ export const CircuitsTab: React.FC = () => {
           <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900">
-                {editingCircuitId ? 'Editar Circuito Derivado' : 'Registrar Nuevo Circuito Derivado'}
+                {editingCircuitId
+                  ? tr('Editar Circuito Derivado', 'Edit Branch Circuit', 'Editar Circuito Derivado')
+                  : tr('Registrar Nuevo Circuito Derivado', 'Record New Branch Circuit', 'Registrar Novo Circuito Derivado')}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowAddCircuitModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                title="Cerrar"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
+                title={tr('Cerrar', 'Close', 'Fechar')}
               >
                 <X size={18} />
               </button>
@@ -533,7 +563,9 @@ export const CircuitsTab: React.FC = () => {
             <form onSubmit={handleSaveCircuit} className="space-y-3 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Tablero de Alimentación</label>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {tr('Tablero de Alimentación', 'Supply Switchboard', 'Quadro de Alimentação')}
+                  </label>
                   <select
                     value={circuitForm.panelId}
                     onChange={e => setCircuitForm({ ...circuitForm, panelId: e.target.value })}
@@ -546,7 +578,9 @@ export const CircuitsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Código del Circuito</label>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {tr('Código del Circuito', 'Circuit Code', 'Código do Circuito')}
+                  </label>
                   <input
                     type="text"
                     value={circuitForm.circuitCode}
@@ -558,29 +592,37 @@ export const CircuitsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Tipo de Carga</label>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {tr('Tipo de Carga', 'Load Type', 'Tipo de Carga')}
+                  </label>
                   <select
                     value={circuitForm.loadType}
                     onChange={e => setCircuitForm({ ...circuitForm, loadType: e.target.value as CircuitLoadType })}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                   >
-                    <option value="ILUMINACION">Iluminación</option>
-                    <option value="TOMACORRIENTES">Tomacorrientes Generales</option>
-                    <option value="MOTOR">Motor / Fuerza Motriz</option>
-                    <option value="MAQUINA_ESPECIAL">Máquina Especial / Proceso</option>
-                    <option value="CLIMATIZACION">Climatización / Aire Acond.</option>
-                    <option value="OTRO">Otro</option>
+                    <option value="ILUMINACION">{tr('Iluminación', 'Lighting', 'Iluminação')}</option>
+                    <option value="TOMACORRIENTES">{tr('Tomacorrientes Generales', 'General Outlets', 'Tomadas Gerais')}</option>
+                    <option value="MOTOR">{tr('Motor / Fuerza Motriz', 'Motor / Motive Power', 'Motor / Força Motriz')}</option>
+                    <option value="MAQUINA_ESPECIAL">{tr('Máquina Especial / Proceso', 'Special Machine / Process', 'Máquina Especial / Processo')}</option>
+                    <option value="CLIMATIZACION">{tr('Climatización / Aire Acond.', 'HVAC / Air Conditioning', 'Climatização / Ar Cond.')}</option>
+                    <option value="OTRO">{tr('Otro', 'Other', 'Outro')}</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Descripción de la Carga Conectada *</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {tr('Descripción de la Carga Conectada *', 'Connected Load Description *', 'Descrição da Carga Conectada *')}
+                </label>
                 <input
                   type="text"
                   value={circuitForm.description}
                   onChange={e => setCircuitForm({ ...circuitForm, description: e.target.value })}
-                  placeholder="Ej. Compresor de tornillo 10 HP / Electrobomba / Centro CNC / Horno / Línea de Envasado"
+                  placeholder={tr(
+                    'Ej. Compresor de tornillo 10 HP / Electrobomba / Centro CNC / Horno / Línea de Envasado',
+                    'E.g. 10 HP Screw Compressor / Water Pump / CNC Center / Industrial Oven',
+                    'Ex. Compressor de parafuso 10 HP / Eletrobomba / Centro CNC / Forno Industrial'
+                  )}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                   required
                 />
@@ -588,7 +630,7 @@ export const CircuitsTab: React.FC = () => {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Potencia (W)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Potencia (W)', 'Power (W)', 'Potência (W)')}</label>
                   <input
                     type="number"
                     value={circuitForm.connectedPowerW}
@@ -611,7 +653,7 @@ export const CircuitsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Tensión / Fases</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Tensión / Fases', 'Voltage / Phases', 'Tensão / Fases')}</label>
                   <div className="flex gap-1">
                     <select
                       value={circuitForm.voltage}
@@ -634,7 +676,7 @@ export const CircuitsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Corriente Ib (A)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Corriente Ib (A)', 'Current Ib (A)', 'Corrente Ib (A)')}</label>
                   <input
                     type="number"
                     step="0.1"
@@ -645,7 +687,7 @@ export const CircuitsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Longitud Cable (m)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Longitud Cable (m)', 'Cable Length (m)', 'Comprimento Cabo (m)')}</label>
                   <input
                     type="number"
                     value={circuitForm.lengthM}
@@ -659,7 +701,7 @@ export const CircuitsTab: React.FC = () => {
               {/* Wire & Conduit */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Calibre Conductor</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Calibre Conductor', 'Wire Section', 'Seção do Condutor')}</label>
                   <select
                     value={circuitForm.wireSectionMm2}
                     onChange={e => setCircuitForm({ ...circuitForm, wireSectionMm2: Number(e.target.value) })}
@@ -672,33 +714,33 @@ export const CircuitsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Aislamiento Cable</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Aislamiento Cable', 'Cable Insulation', 'Isolação do Cabo')}</label>
                   <select
                     value={circuitForm.wireInsulation}
                     onChange={e => setCircuitForm({ ...circuitForm, wireInsulation: e.target.value as WireInsulation })}
                     className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-amber-500 focus:outline-none"
                   >
-                    <option value="NH-80">NH-80 (Libre Halógenos)</option>
-                    <option value="N2XH">N2XH (Libre Halógenos 90°C)</option>
+                    <option value="NH-80">{tr('NH-80 (Libre Halógenos)', 'NH-80 (Halogen-Free)', 'NH-80 (Livre de Halogênios)')}</option>
+                    <option value="N2XH">{tr('N2XH (Libre Halógenos 90°C)', 'N2XH (Halogen-Free 90°C)', 'N2XH (Livre de Halogênios 90°C)')}</option>
                     <option value="THW-90">THW-90</option>
                     <option value="TW">TW (70°C)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Material</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Material', 'Material', 'Material')}</label>
                   <select
                     value={circuitForm.wireMaterial}
                     onChange={e => setCircuitForm({ ...circuitForm, wireMaterial: e.target.value as WireMaterial })}
                     className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-amber-500 focus:outline-none"
                   >
-                    <option value="COBRE">Cobre Electrolítico</option>
-                    <option value="ALUMINIO">Aluminio</option>
+                    <option value="COBRE">{tr('Cobre Electrolítico', 'Electrolytic Copper', 'Cobre Eletrolítico')}</option>
+                    <option value="ALUMINIO">{tr('Aluminio', 'Aluminum', 'Alumínio')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Tierra PE (mm²)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Tierra PE (mm²)', 'PE Ground (mm²)', 'Terra PE (mm²)')}</label>
                   <select
                     value={circuitForm.groundWireMm2}
                     onChange={e => setCircuitForm({ ...circuitForm, groundWireMm2: Number(e.target.value) })}
@@ -714,7 +756,7 @@ export const CircuitsTab: React.FC = () => {
               {/* Protections */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-amber-50/50 p-3 rounded-xl border border-amber-200">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Termomagnético In (A)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Termomagnético In (A)', 'Breaker Rating In (A)', 'Disjuntor In (A)')}</label>
                   <input
                     type="number"
                     value={circuitForm.breakerExistingA}
@@ -724,20 +766,20 @@ export const CircuitsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Curva Disparo</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Curva Disparo', 'Trip Curve', 'Curva de Disparo')}</label>
                   <select
                     value={circuitForm.breakerCurve}
                     onChange={e => setCircuitForm({ ...circuitForm, breakerCurve: e.target.value as any })}
                     className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-bold focus:border-amber-500 focus:outline-none"
                   >
-                    <option value="B">Curva B (Resistivo)</option>
-                    <option value="C">Curva C (General)</option>
-                    <option value="D">Curva D (Motores)</option>
+                    <option value="B">{tr('Curva B (Resistivo)', 'Curve B (Resistive)', 'Curva B (Resistivo)')}</option>
+                    <option value="C">{tr('Curva C (General)', 'Curve C (General)', 'Curva C (Geral)')}</option>
+                    <option value="D">{tr('Curva D (Motores)', 'Curve D (Motors)', 'Curva D (Motores)')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Diferencial In (A)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Diferencial In (A)', 'RCD Rating In (A)', 'Diferencial DR In (A)')}</label>
                   <input
                     type="number"
                     value={circuitForm.rcdExistingA || 25}
@@ -747,14 +789,14 @@ export const CircuitsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Sensibilidad RCD</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Sensibilidad RCD', 'RCD Sensitivity', 'Sensibilidade DR')}</label>
                   <select
                     value={circuitForm.rcdSensitivityMa}
                     onChange={e => setCircuitForm({ ...circuitForm, rcdSensitivityMa: Number(e.target.value) })}
                     className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-mono font-bold focus:border-amber-500 focus:outline-none"
                   >
-                    <option value={30}>30 mA (Personas)</option>
-                    <option value={300}>300 mA (Incendio)</option>
+                    <option value={30}>{tr('30 mA (Personas)', '30 mA (Personnel)', '30 mA (Pessoas)')}</option>
+                    <option value={300}>{tr('300 mA (Incendio)', '300 mA (Fire)', '300 mA (Incêndio)')}</option>
                   </select>
                 </div>
               </div>
@@ -763,15 +805,15 @@ export const CircuitsTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddCircuitModal(false)}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
-                  Cancelar
+                  {tr('Cancelar', 'Cancel', 'Cancelar')}
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400"
+                  className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer"
                 >
-                  {editingCircuitId ? 'Guardar Circuito' : 'Registrar Circuito'}
+                  {editingCircuitId ? tr('Guardar Circuito', 'Save Circuit', 'Salvar Circuito') : tr('Registrar Circuito', 'Add Circuit', 'Registrar Circuito')}
                 </button>
               </div>
             </form>
@@ -785,13 +827,13 @@ export const CircuitsTab: React.FC = () => {
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900">
-                Registrar Nuevo Tablero Eléctrico
+                {tr('Registrar Nuevo Tablero Eléctrico', 'Register New Electrical Switchboard', 'Registrar Novo Quadro Elétrico')}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowAddPanelModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                title="Cerrar"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
+                title={tr('Cerrar', 'Close', 'Fechar')}
               >
                 <X size={18} />
               </button>
@@ -804,7 +846,7 @@ export const CircuitsTab: React.FC = () => {
             }} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Código del Tablero</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Código del Tablero', 'Switchboard Code', 'Código do Quadro')}</label>
                   <input
                     type="text"
                     value={panelForm.code}
@@ -815,27 +857,27 @@ export const CircuitsTab: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Tipo de Tablero</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Tipo de Tablero', 'Switchboard Type', 'Tipo de Quadro')}</label>
                   <select
                     value={panelForm.panelType}
                     onChange={e => setPanelForm({ ...panelForm, panelType: e.target.value as any })}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                   >
-                    <option value="TABLERO_GENERAL">Tablero General (TG)</option>
-                    <option value="SUBTABLERO_DISTRIBUCION">Subtablero Distribución</option>
-                    <option value="TABLERO_MAQUINAS">Tablero de Fuerza / Máquinas</option>
-                    <option value="TABLERO_ALUMBRADO">Tablero de Alumbrado</option>
+                    <option value="TABLERO_GENERAL">{tr('Tablero General (TG)', 'Main Switchboard (TG)', 'Quadro Geral (QGBT)')}</option>
+                    <option value="SUBTABLERO_DISTRIBUCION">{tr('Subtablero Distribución', 'Distribution Sub-Panel', 'Subquadro de Distribuição')}</option>
+                    <option value="TABLERO_MAQUINAS">{tr('Tablero de Fuerza / Máquinas', 'Power / Machinery Panel', 'Quadro de Força / Máquinas')}</option>
+                    <option value="TABLERO_ALUMBRADO">{tr('Tablero de Alumbrado', 'Lighting Panel', 'Quadro de Iluminação')}</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Nombre Completo del Tablero</label>
+                <label className="block font-semibold text-slate-700 mb-1">{tr('Nombre Completo del Tablero', 'Full Switchboard Name', 'Nome Completo do Quadro')}</label>
                 <input
                   type="text"
                   value={panelForm.name}
                   onChange={e => setPanelForm({ ...panelForm, name: e.target.value })}
-                  placeholder="Ej. Tablero General Industrial"
+                  placeholder={tr('Ej. Tablero General Industrial', 'E.g. Main Industrial Switchboard', 'Ex. Quadro Geral Industrial')}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                   required
                 />
@@ -843,7 +885,7 @@ export const CircuitsTab: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Interruptor General (A)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Interruptor General (A)', 'Main Breaker (A)', 'Disjuntor Geral (A)')}</label>
                   <input
                     type="number"
                     value={panelForm.mainBreakerRatingA}
@@ -853,7 +895,7 @@ export const CircuitsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Gabinete / Enclosure</label>
+                  <label className="block font-semibold text-slate-700 mb-1">{tr('Gabinete / Enclosure', 'Enclosure Type', 'Gabinete / Invólucro')}</label>
                   <input
                     type="text"
                     value={panelForm.enclosureType}
@@ -865,12 +907,12 @@ export const CircuitsTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Ubicación Física</label>
+                <label className="block font-semibold text-slate-700 mb-1">{tr('Ubicación Física', 'Physical Location', 'Localização Física')}</label>
                 <input
                   type="text"
                   value={panelForm.location}
                   onChange={e => setPanelForm({ ...panelForm, location: e.target.value })}
-                  placeholder="Ej. Caseta de subestación / Nave de costura"
+                  placeholder={tr('Ej. Caseta de subestación / Nave de costura', 'E.g. Substation room / Production bay', 'Ex. Cabine da subestação / Galpão de produção')}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -879,15 +921,15 @@ export const CircuitsTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddPanelModal(false)}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
-                  Cancelar
+                  {tr('Cancelar', 'Cancel', 'Cancelar')}
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400"
+                  className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer"
                 >
-                  Crear Tablero
+                  {tr('Crear Tablero', 'Create Switchboard', 'Criar Quadro')}
                 </button>
               </div>
             </form>

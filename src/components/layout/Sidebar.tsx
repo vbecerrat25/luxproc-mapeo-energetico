@@ -7,6 +7,7 @@ import {
   Receipt, 
   Cpu, 
   SlidersHorizontal, 
+  Cable,
   ShieldAlert, 
   Activity, 
   SunMedium, 
@@ -31,14 +32,20 @@ export const Sidebar: React.FC = () => {
     setShowNewProjectModal,
     savedProjects,
     subscriptionPlan,
-    isModulePremium,
     isMasterUser
   } = useDiagnostic();
   const { t, language } = useLanguage();
 
+  const tr = (es: string, en: string, pt: string) => {
+    if (language === 'en') return en;
+    if (language === 'pt') return pt;
+    return es;
+  };
+
   const navItems = [
     { id: 'dashboard', label: t('nav.dashboard', 'Panel Ejecutivo'), icon: LayoutDashboard, badge: null, isPremium: false },
     { id: 'general', label: t('nav.general', 'Datos & Tarifas'), icon: FileText, badge: diagnostic.generalData.installationType, isPremium: false },
+    { id: 'wiring', label: t('nav.wiring', tr('Cableado & Llaves', 'Wiring & Breakers', 'Fiação & Disjuntores')), icon: Cable, badge: 'CNE', isPremium: false },
     { id: 'receipts', label: t('nav.receipts', 'Recibos vs Censo'), icon: Receipt, badge: `${(diagnostic.receipts || []).length}m`, isPremium: false },
     { id: 'equipment', label: t('nav.equipment', 'Censo de Cargas'), icon: Cpu, badge: `${(computedEquipment || []).length}`, isPremium: false },
     { id: 'circuits', label: t('nav.circuits', 'Tableros & CNE'), icon: SlidersHorizontal, badge: `${(diagnostic.circuits || []).length} cir`, isPremium: false },
@@ -67,11 +74,11 @@ export const Sidebar: React.FC = () => {
           {/* Installation metadata summary bento pill */}
           <div className="mb-4 rounded-2xl border border-slate-100 bg-[#f8f9fb] p-3.5">
             <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              <span>{language === 'es' ? 'Instalación Activa' : 'Active Facility'}</span>
+              <span>{tr('Instalación Activa', 'Active Facility', 'Instalação Ativa')}</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             </div>
             <div className="font-bold text-slate-900 text-xs truncate mt-1" title={diagnostic.generalData.companyName || diagnostic.generalData.clientName}>
-              {diagnostic.generalData.companyName || diagnostic.generalData.clientName || (language === 'es' ? 'Proyecto en Blanco' : 'Blank Project')}
+              {diagnostic.generalData.companyName || diagnostic.generalData.clientName || tr('Proyecto en Blanco', 'Blank Project', 'Projeto em Branco')}
             </div>
             <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 font-medium">
               <span>{diagnostic.tariff?.supplyVoltage || 220}V {diagnostic.tariff?.phases === 'TRIFASICO' ? '3Ø' : '1Ø'}</span>
@@ -132,21 +139,12 @@ export const Sidebar: React.FC = () => {
           </nav>
         </div>
 
-        {/* Footer Info & Active Subscription Badge */}
-        <div className="mt-4 border-t border-slate-100 pt-3 px-1 space-y-2">
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-slate-400 font-semibold">{language === 'es' ? 'Plan:' : 'Plan:'}</span>
-            <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-              subscriptionPlan === 'PREMIUM'
-                ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                : 'bg-slate-100 text-slate-700'
-            }`}>
-              {subscriptionPlan === 'PREMIUM' ? 'Premium (S/ 50)' : 'Estándar (S/ 20)'}
-            </span>
-          </div>
-
+        {/* Footer Info */}
+        <div className="mt-4 border-t border-slate-100 pt-3 px-1">
           <div className="text-[10px] text-slate-400">
-            <div className="font-bold text-slate-500 uppercase tracking-wider text-[9px] mb-0.5">Normas Técnicas</div>
+            <div className="font-bold text-slate-500 uppercase tracking-wider text-[9px] mb-0.5">
+              {tr('Normas Técnicas', 'Technical Standards', 'Normas Técnicas')}
+            </div>
             <div className="font-medium text-slate-600">CNE 2006 • RNE EM.010 • IEC 60364</div>
           </div>
         </div>

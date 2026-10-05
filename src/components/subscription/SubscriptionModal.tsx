@@ -93,25 +93,28 @@ export const SubscriptionModal: React.FC = () => {
     });
   };
 
+  const tr = (es: string, en: string, pt: string) =>
+    language === 'en' ? en : language === 'pt' ? pt : es;
+
   const standardFeatures = [
-    language === 'es' ? 'Datos Generales & Tarifas Eléctricas' : language === 'pt' ? 'Dados Gerais & Tarifas Elétricas' : 'General Data & Electrical Tariffs',
-    language === 'es' ? 'Recibos de Consumo vs Censo de Equipos' : language === 'pt' ? 'Faturas de Consumo vs Censo de Cargas' : 'Utility Bills vs Equipment Survey',
-    language === 'es' ? 'Censo de Cargas e Instalación Eléctrica' : language === 'pt' ? 'Censo de Equipamentos e Cargas' : 'Equipment Survey & Electrical Loads',
-    language === 'es' ? 'Tableros y Circuitos bajo Código CNE' : language === 'pt' ? 'Quadros e Circuitos conforme Código CNE' : 'Electrical Panels & Circuits (CNE / NEC)',
-    language === 'es' ? 'Puesta a Tierra (PAT) y Medición Telúrica' : language === 'pt' ? 'Aterramento (PAT) e Medição Telúrica' : 'Grounding System (PAT) & Soil Resistance',
-    language === 'es' ? 'Evidencias Fotográficas de la Inspección' : language === 'pt' ? 'Evidências Fotográficas da Inspeção' : 'Inspection Photo Evidence',
-    language === 'es' ? 'Hasta 2 Trabajos Guardados en Plataforma' : language === 'pt' ? 'Até 2 Projetos Salvos na Plataforma' : 'Up to 2 Saved Projects in Platform',
-    language === 'es' ? 'Informe Oficial Certificado CIP con Firma Pericial' : language === 'pt' ? 'Relatório Oficial Certificado CIP com Assinatura Pericial' : 'Official Certified CIP Report with Stamp & Signature'
+    tr('Datos Generales & Tarifas Eléctricas', 'General Data & Electrical Tariffs', 'Dados Gerais & Tarifas Elétricas'),
+    tr('Recibos de Consumo vs Censo de Equipos', 'Utility Bills vs Equipment Survey', 'Faturas de Consumo vs Censo de Cargas'),
+    tr('Censo de Cargas e Instalación Eléctrica', 'Equipment Survey & Electrical Loads', 'Censo de Equipamentos e Cargas'),
+    tr('Tableros y Circuitos bajo Código CNE', 'Electrical Panels & Circuits (CNE / NEC)', 'Quadros e Circuitos conforme Código CNE'),
+    tr('Verificación de Cableado, Colores & Llaves (ITM / ID)', 'Wiring Verification, Colors & Breakers (MCB / RCD)', 'Verificação de Cabeamento, Cores & Disjuntores (DR)'),
+    tr('Puesta a Tierra (PAT) y Medición Telúrica', 'Grounding System (PAT) & Soil Resistance', 'Aterramento (PAT) e Medição Telúrica'),
+    tr('Evidencias Fotográficas de la Inspección', 'Inspection Photo Evidence', 'Evidências Fotográficas da Inspeção'),
+    tr('Hasta 2 Trabajos Guardados en Plataforma', 'Up to 2 Saved Projects in Platform', 'Até 2 Projetos Salvos na Plataforma'),
+    tr('Informe Oficial Certificado CIP con Firma Pericial', 'Official Certified CIP Report with Stamp & Signature', 'Relatório Oficial Certificado CIP com Assinatura Pericial')
   ];
 
   const premiumFeatures = [
-    language === 'es' ? 'Todo lo incluido en el Plan Estándar' : language === 'pt' ? 'Tudo incluído no Plano Padrão' : 'Everything in Standard Plan',
-    language === 'es' ? 'Compensación Factor de Potencia (cos φ) & Banco Condensadores' : language === 'pt' ? 'Compensação Fator de Potência (cos φ) & Banco Capacitores' : 'Power Factor Compensation & Capacitor Banks',
-    language === 'es' ? 'Dimensionamiento & Simulación Solar Fotovoltaica (PV)' : language === 'pt' ? 'Dimensionamento & Simulação Solar Fotovoltaica (PV)' : 'Solar PV Simulation & Financial Payback',
-    language === 'es' ? 'Estudio de Iluminación & Luxometría (RNE EM.010)' : language === 'pt' ? 'Estudo de Iluminação & Luxometria (RNE EM.010)' : 'Lighting & Lux Measurement Study (RNE EM.010)',
-    language === 'es' ? 'Matriz Inteligente de Oportunidades de Ahorro (VAN / TIR)' : language === 'pt' ? 'Matriz Inteligente de Economia Energética (VPL / TIR)' : 'Smart Energy Savings Matrix (NPV / IRR)',
-    language === 'es' ? 'Lista de Materiales (BOM) & Presupuesto Comercial' : language === 'pt' ? 'Lista de Materiais (BOM) & Orçamento Comercial' : 'Bill of Materials (BOM) & Costing',
-    language === 'es' ? 'Exportación Completa Excel (.xlsx) con Memorias de Cálculo' : language === 'pt' ? 'Exportação Completa Excel (.xlsx) com Fórmulas e Memoriais' : 'Full Excel (.xlsx) Export with Calculation Models'
+    tr('Todo lo incluido en el Plan Estándar', 'Everything in Standard Plan', 'Tudo incluído no Plano Padrão'),
+    tr('Compensación Factor de Potencia (cos φ) & Banco Condensadores', 'Power Factor Compensation & Capacitor Banks', 'Compensação Fator de Potência (cos φ) & Banco Capacitores'),
+    tr('Dimensionamiento & Simulación Solar Fotovoltaica (PV)', 'Solar PV Simulation & Financial Payback', 'Dimensionamento & Simulação Solar Fotovoltaica (PV)'),
+    tr('Estudio de Iluminación & Luxometría (RNE EM.010)', 'Lighting & Lux Measurement Study (RNE EM.010)', 'Estudo de Iluminação & Luxometria (RNE EM.010)'),
+    tr('Matriz Inteligente de Oportunidades de Ahorro (VAN / TIR)', 'Smart Energy Savings Matrix (NPV / IRR)', 'Matriz Inteligente de Economia Energética (VPL / TIR)'),
+    tr('Lista de Materiales (BOM) & Presupuesto Comercial', 'Bill of Materials (BOM) & Costing', 'Lista de Materiais (BOM) & Orçamento Comercial')
   ];
 
   return (
@@ -133,7 +136,7 @@ export const SubscriptionModal: React.FC = () => {
               <h3 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
                 <span>{t('plan.modal_title', 'Planes de Suscripción E-DIAGNOSIS OS')}</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-mono border border-amber-400/30 uppercase">
-                  1 - 12 Meses
+                  {tr('1 - 12 Meses', '1 - 12 Months', '1 - 12 Meses')}
                 </span>
               </h3>
               <p className="text-xs text-slate-300">
@@ -170,11 +173,11 @@ export const SubscriptionModal: React.FC = () => {
                     </span>
                   </h4>
                   <p className="text-[11px] text-slate-600">
-                    {language === 'es' 
-                      ? 'Ajuste la duración con los botones o la barra deslizable. Descuentos: 3% (3+ m) · 6% (6+ m) · 9% (12 m)' 
-                      : language === 'pt'
-                        ? 'Ajuste a duração com os botões ou barra. Descontos: 3% (3+ m) · 6% (6+ m) · 9% (12 m)'
-                        : 'Adjust duration with stepper or slider. Discounts: 3% (3+ m) · 6% (6+ m) · 9% (12 m)'}
+                    {tr(
+                      'Ajuste la duración con los botones o la barra deslizable. Descuentos: 3% (3+ m) · 6% (6+ m) · 9% (12 m)',
+                      'Adjust duration with stepper or slider. Discounts: 3% (3+ m) · 6% (6+ m) · 9% (12 m)',
+                      'Ajuste a duração com os botões ou barra. Descontos: 3% (3+ m) · 6% (6+ m) · 9% (12 m)'
+                    )}
                   </p>
                 </div>
               </div>
@@ -187,7 +190,7 @@ export const SubscriptionModal: React.FC = () => {
                     disabled={selectedMonths <= 1}
                     onClick={() => setSelectedMonths(prev => Math.max(1, prev - 1))}
                     className="p-1.5 rounded-xl text-slate-700 hover:text-indigo-900 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
-                    title="Disminuir un mes"
+                    title={tr('Disminuir un mes', 'Decrease 1 month', 'Diminuir um mês')}
                   >
                     <Minus className="w-4 h-4 stroke-[2.5]" />
                   </button>
@@ -206,7 +209,7 @@ export const SubscriptionModal: React.FC = () => {
                     disabled={selectedMonths >= 12}
                     onClick={() => setSelectedMonths(prev => Math.min(12, prev + 1))}
                     className="p-1.5 rounded-xl text-slate-700 hover:text-indigo-900 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
-                    title="Aumentar un mes"
+                    title={tr('Aumentar un mes', 'Increase 1 month', 'Aumentar um mês')}
                   >
                     <Plus className="w-4 h-4 stroke-[2.5]" />
                   </button>
@@ -226,7 +229,7 @@ export const SubscriptionModal: React.FC = () => {
                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
               <div className="flex justify-between text-[10px] font-bold text-slate-400 mt-1 px-1 font-mono">
-                <span>1 mes</span>
+                <span>1 {t('plan.month_single', 'mes')}</span>
                 <span>3m (-3%)</span>
                 <span>6m (-6%)</span>
                 <span>9m (-6%)</span>
@@ -237,14 +240,14 @@ export const SubscriptionModal: React.FC = () => {
             {/* Acceso Rápido en Botones / Pastillas */}
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
               <span className="text-[11px] font-bold text-slate-500 mr-1">
-                {language === 'es' ? 'Accesos rápidos:' : language === 'pt' ? 'Atalhos rápidos:' : 'Quick shortcuts:'}
+                {tr('Accesos rápidos:', 'Quick shortcuts:', 'Atalhos rápidos:')}
               </span>
               {[
-                { m: 1, label: '1 mes (S/ base)' },
-                { m: 2, label: '2 meses' },
-                { m: 3, label: '3 meses (-3% OFF)' },
-                { m: 6, label: '6 meses (-6% OFF)' },
-                { m: 12, label: '12 meses (-9% OFF)' }
+                { m: 1, label: tr('1 mes (S/ base)', '1 month (Base)', '1 mês (Base)') },
+                { m: 2, label: tr('2 meses', '2 months', '2 meses') },
+                { m: 3, label: tr('3 meses (-3% OFF)', '3 months (-3% OFF)', '3 meses (-3% OFF)') },
+                { m: 6, label: tr('6 meses (-6% OFF)', '6 months (-6% OFF)', '6 meses (-6% OFF)') },
+                { m: 12, label: tr('12 meses (-9% OFF)', '12 months (-9% OFF)', '12 meses (-9% OFF)') }
               ].map(btn => (
                 <button
                   key={btn.m}
@@ -267,15 +270,15 @@ export const SubscriptionModal: React.FC = () => {
                 <span className="flex items-center gap-1.5">
                   <Percent className="w-4 h-4 text-emerald-600" />
                   <span>
-                    {language === 'es' 
-                      ? `¡Descuento oficial del ${getDiscountPercent(selectedMonths)}% aplicado para ${selectedMonths} meses!` 
-                      : language === 'pt'
-                        ? `Desconto oficial de ${getDiscountPercent(selectedMonths)}% aplicado para ${selectedMonths} meses!`
-                        : `Official ${getDiscountPercent(selectedMonths)}% loyalty discount applied for ${selectedMonths} months!`}
+                    {tr(
+                      `¡Descuento oficial del ${getDiscountPercent(selectedMonths)}% aplicado para ${selectedMonths} meses!`,
+                      `Official ${getDiscountPercent(selectedMonths)}% loyalty discount applied for ${selectedMonths} months!`,
+                      `Desconto oficial de ${getDiscountPercent(selectedMonths)}% aplicado para ${selectedMonths} meses!`
+                    )}
                   </span>
                 </span>
                 <span className="font-mono text-[11px] bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-md font-bold">
-                  {selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}
+                  {selectedMonths} {selectedMonths === 1 ? t('plan.month_single', 'mes') : t('plan.months_count', 'meses')}
                 </span>
               </div>
             )}
@@ -318,7 +321,7 @@ export const SubscriptionModal: React.FC = () => {
                   <div className="mb-4 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
                     <div className="flex items-center justify-between font-bold text-slate-800">
                       <span>{t('plan.months_to_contract', 'Meses contratados:')}</span>
-                      <span className="font-mono text-indigo-700">{selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}</span>
+                      <span className="font-mono text-indigo-700">{selectedMonths} {selectedMonths === 1 ? t('plan.month_single', 'mes') : t('plan.months_count', 'meses')}</span>
                     </div>
                     <div className="flex items-center justify-between text-slate-600 text-[11px] mt-1">
                       <span>Subtotal ({selectedMonths} x S/ 20):</span>
@@ -326,25 +329,27 @@ export const SubscriptionModal: React.FC = () => {
                     </div>
                     {standardPricing.discountPct > 0 && (
                       <div className="flex items-center justify-between text-emerald-700 font-bold text-[11px] mt-0.5">
-                        <span>Descuento (-{standardPricing.discountPct}%):</span>
+                        <span>{tr('Descuento', 'Discount', 'Desconto')} (-{standardPricing.discountPct}%):</span>
                         <span className="font-mono">- S/ {standardPricing.discountAmount.toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between font-black text-slate-900 border-t border-slate-200 pt-1.5 mt-1.5">
-                      <span>Total Estándar:</span>
+                      <span>{tr('Total Estándar:', 'Standard Total:', 'Total Padrão:')}</span>
                       <span className="font-mono text-indigo-950 text-sm">S/ {standardPricing.total.toFixed(2)} PEN</span>
                     </div>
                   </div>
 
                   <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-                    {language === 'es'
-                      ? 'Censo de cargas, tableros bajo CNE, puesta a tierra e informe oficial pericial CIP garantizado.'
-                      : 'Load survey, CNE electrical panels, grounding and official certified CIP technical report.'}
+                    {tr(
+                      'Censo de cargas, tableros CNE, verificación de cableado y llaves, puesta a tierra e informe pericial CIP.',
+                      'Load survey, CNE panels, wiring & breaker verification, grounding, and official certified CIP report.',
+                      'Censo de cargas, quadros CNE, verificação de cabeamento e disjuntores, aterramento e laudo CIP.'
+                    )}
                   </p>
 
                   <div className="space-y-2 pt-2 border-t border-slate-100">
                     <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                      {language === 'es' ? 'Incluido en Plan Estándar:' : 'Included in Standard Plan:'}
+                      {tr('Incluido en Plan Estándar:', 'Included in Standard Plan:', 'Incluído no Plano Padrão:')}
                     </span>
                     {standardFeatures.map((feat, idx) => (
                       <div key={idx} className="flex items-start gap-2 text-xs text-slate-700">
@@ -367,8 +372,8 @@ export const SubscriptionModal: React.FC = () => {
                   >
                     <span>
                       {subscriptionPlan === 'ESTANDAR' && selectedMonths === 1
-                        ? 'Extender Plan Estándar'
-                        : `Activar Plan Estándar (${selectedMonths}m · S/ ${standardPricing.total.toFixed(2)})`}
+                        ? tr('Extender Plan Estándar', 'Extend Standard Plan', 'Estender Plano Padrão')
+                        : `${t('plan.activate_standard', 'Activar Plan Estándar')} (${selectedMonths}m · S/ ${standardPricing.total.toFixed(2)})`}
                     </span>
                   </button>
                 </div>
@@ -382,7 +387,7 @@ export const SubscriptionModal: React.FC = () => {
               }`}>
                 <div className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[10px] font-black tracking-wider uppercase shadow-xs flex items-center gap-1">
                   <Sparkles className="w-3 h-3" />
-                  <span>{subscriptionPlan === 'PREMIUM' ? t('plan.current_active', 'Plan Activo Actual') : 'Recomendado CIP'}</span>
+                  <span>{subscriptionPlan === 'PREMIUM' ? t('plan.current_active', 'Plan Activo Actual') : tr('Recomendado CIP', 'CIP Recommended', 'Recomendado CIP')}</span>
                 </div>
 
                 <div>
@@ -404,7 +409,7 @@ export const SubscriptionModal: React.FC = () => {
                   <div className="mb-4 p-2.5 rounded-xl bg-amber-50 border border-amber-300/80 text-xs">
                     <div className="flex items-center justify-between font-bold text-amber-950">
                       <span>{t('plan.months_to_contract', 'Meses contratados:')}</span>
-                      <span className="font-mono text-amber-900">{selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}</span>
+                      <span className="font-mono text-amber-900">{selectedMonths} {selectedMonths === 1 ? t('plan.month_single', 'mes') : t('plan.months_count', 'meses')}</span>
                     </div>
                     <div className="flex items-center justify-between text-slate-600 text-[11px] mt-1">
                       <span>Subtotal ({selectedMonths} x S/ 50):</span>
@@ -412,26 +417,28 @@ export const SubscriptionModal: React.FC = () => {
                     </div>
                     {premiumPricing.discountPct > 0 && (
                       <div className="flex items-center justify-between text-emerald-800 font-bold text-[11px] mt-0.5">
-                        <span>Descuento (-{premiumPricing.discountPct}%):</span>
+                        <span>{tr('Descuento', 'Discount', 'Desconto')} (-{premiumPricing.discountPct}%):</span>
                         <span className="font-mono">- S/ {premiumPricing.discountAmount.toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between font-black text-amber-950 border-t border-amber-300 pt-1.5 mt-1.5">
-                      <span>Total Premium:</span>
+                      <span>{tr('Total Premium:', 'Premium Total:', 'Total Premium:')}</span>
                       <span className="font-mono text-amber-950 text-sm">S/ {premiumPricing.total.toFixed(2)} PEN</span>
                     </div>
                   </div>
 
                   <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-                    {language === 'es'
-                      ? 'Simulación solar fotovoltaica, banco de condensadores (cos φ), luxometría RNE, BOM y dictamen CIP.'
-                      : 'Solar PV simulation, capacitor bank sizing, lighting study, BOM, and certified CIP audit report.'}
+                    {tr(
+                      'Simulación solar fotovoltaica, banco de condensadores (cos φ), luxometría RNE, BOM y dictamen CIP.',
+                      'Solar PV simulation, capacitor bank sizing, lighting study, BOM, and certified CIP audit report.',
+                      'Simulação solar fotovoltaica, banco de capacitores (cos φ), estudo luminotécnico, BOM e parecer CIP.'
+                    )}
                   </p>
 
                   <div className="space-y-2 pt-2 border-t border-amber-200">
                     <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                      <span>{language === 'es' ? 'Módulos Avanzados Desbloqueados:' : 'Advanced Modules Unlocked:'}</span>
+                      <span>{tr('Módulos Avanzados Desbloqueados:', 'Advanced Modules Unlocked:', 'Módulos Avançados Desbloqueados:')}</span>
                     </span>
                     {premiumFeatures.map((feat, idx) => (
                       <div key={idx} className="flex items-start gap-2 text-xs text-slate-800">
@@ -451,8 +458,8 @@ export const SubscriptionModal: React.FC = () => {
                     <Sparkles className="w-4 h-4" />
                     <span>
                       {subscriptionPlan === 'PREMIUM' && selectedMonths === 1
-                        ? 'Extender Plan Premium'
-                        : `Activar Plan Premium (${selectedMonths}m · S/ ${premiumPricing.total.toFixed(2)})`}
+                        ? tr('Extender Plan Premium', 'Extend Premium Plan', 'Estender Plano Premium')
+                        : `${t('plan.activate_premium', 'Activar Plan Premium')} (${selectedMonths}m · S/ ${premiumPricing.total.toFixed(2)})`}
                     </span>
                   </button>
                 </div>
@@ -472,8 +479,8 @@ export const SubscriptionModal: React.FC = () => {
                 </span>
                 <h4 className="text-xl font-black text-slate-900">
                   {selectedPlanToPay === 'PREMIUM' 
-                    ? `Plan Premium (S/ 50 / mes)`
-                    : `Plan Estándar (S/ 20 / mes)`}
+                    ? `${t('plan.premium_title', 'Plan Premium')} (S/ 50 / ${t('plan.month_single', 'mes')})`
+                    : `${t('plan.standard_title', 'Plan Estándar')} (S/ 20 / ${t('plan.month_single', 'mes')})`}
                 </h4>
                 <p className="text-xs text-slate-500">
                   {t('plan.checkout_subtitle', 'Verifique la cantidad de meses elegidos, el descuento y el monto final en soles:')}
@@ -490,7 +497,7 @@ export const SubscriptionModal: React.FC = () => {
                         {t('plan.time_required', 'Tiempo de uso de la plataforma web:')}
                       </span>
                       <span className="text-[11px] text-slate-600">
-                        Válido hasta: <strong className="text-indigo-950 font-bold">{getExpirationDate(selectedMonths)}</strong>
+                        {tr('Válido hasta:', 'Valid until:', 'Válido até:')} <strong className="text-indigo-950 font-bold">{getExpirationDate(selectedMonths)}</strong>
                       </span>
                     </div>
                   </div>
@@ -502,19 +509,19 @@ export const SubscriptionModal: React.FC = () => {
                       disabled={selectedMonths <= 1}
                       onClick={() => setSelectedMonths(prev => Math.max(1, prev - 1))}
                       className="p-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
-                      title="Menos meses"
+                      title={tr('Menos meses', 'Fewer months', 'Menos meses')}
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
                     <span className="font-black text-xs px-2.5 text-indigo-950 font-mono">
-                      {selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}
+                      {selectedMonths} {selectedMonths === 1 ? t('plan.month_single', 'mes') : t('plan.months_count', 'meses')}
                     </span>
                     <button
                       type="button"
                       disabled={selectedMonths >= 12}
                       onClick={() => setSelectedMonths(prev => Math.min(12, prev + 1))}
                       className="p-1 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
-                      title="Más meses"
+                      title={tr('Más meses', 'More months', 'Mais meses')}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -552,7 +559,7 @@ export const SubscriptionModal: React.FC = () => {
                   }`}
                 >
                   <span className="block text-xs font-black text-purple-900">YAPE</span>
-                  <span className="text-[10px] text-slate-500">Billetera Móvil BCP</span>
+                  <span className="text-[10px] text-slate-500">{tr('Billetera Móvil BCP', 'BCP Mobile Wallet', 'Carteira Móvel BCP')}</span>
                 </button>
 
                 <button
@@ -577,7 +584,7 @@ export const SubscriptionModal: React.FC = () => {
                       : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="block text-xs font-black text-emerald-900">Tarjeta Débito / Crédito</span>
+                  <span className="block text-xs font-black text-emerald-900">{tr('Tarjeta Débito / Crédito', 'Debit / Credit Card', 'Cartão Débito / Crédito')}</span>
                   <span className="text-[10px] text-slate-500">Visa / Mastercard / Amex</span>
                 </button>
 
@@ -590,29 +597,29 @@ export const SubscriptionModal: React.FC = () => {
                       : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="block text-xs font-black text-amber-900">Transferencia CIP</span>
-                  <span className="text-[10px] text-slate-500">Cuenta Institucional CIP</span>
+                  <span className="block text-xs font-black text-amber-900">{tr('Transferencia CIP', 'CIP Bank Transfer', 'Transferência Bancária CIP')}</span>
+                  <span className="text-[10px] text-slate-500">{tr('Cuenta Institucional CIP', 'Institutional CIP Account', 'Conta Institucional CIP')}</span>
                 </button>
               </div>
 
               {/* Desglose Completo y Preciso de Pago */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-600">Plan contratado:</span>
+                  <span className="text-slate-600">{tr('Plan contratado:', 'Selected plan:', 'Plano selecionado:')}</span>
                   <span className="font-bold text-slate-900">
-                    {selectedPlanToPay === 'PREMIUM' ? 'Plan Premium (S/ 50/mes)' : 'Plan Estándar (S/ 20/mes)'}
+                    {selectedPlanToPay === 'PREMIUM' ? `${t('plan.premium_title', 'Plan Premium')} (S/ 50)` : `${t('plan.standard_title', 'Plan Estándar')} (S/ 20)`}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-600">Duración contratada:</span>
+                  <span className="text-slate-600">{tr('Duración contratada:', 'Contracted duration:', 'Duração contratada:')}</span>
                   <span className="font-mono font-bold text-indigo-700">
-                    {selectedMonths} {selectedMonths === 1 ? 'mes' : 'meses'}
+                    {selectedMonths} {selectedMonths === 1 ? t('plan.month_single', 'mes') : t('plan.months_count', 'meses')}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-600">Subtotal base ({selectedMonths}m x S/ {payingPricing.basePrice}):</span>
+                  <span className="text-slate-600">Subtotal ({selectedMonths}m x S/ {payingPricing.basePrice}):</span>
                   <span className="font-semibold text-slate-800 font-mono">
                     S/ {payingPricing.subtotal.toFixed(2)} PEN
                   </span>
@@ -620,7 +627,7 @@ export const SubscriptionModal: React.FC = () => {
 
                 {payingPricing.discountPct > 0 && (
                   <div className="flex justify-between items-center text-emerald-700 font-bold">
-                    <span>Descuento fidelidad ({payingPricing.discountPct}%):</span>
+                    <span>{tr('Descuento fidelidad', 'Loyalty discount', 'Desconto fidelidade')} ({payingPricing.discountPct}%):</span>
                     <span className="font-mono">- S/ {payingPricing.discountAmount.toFixed(2)} PEN</span>
                   </div>
                 )}
@@ -633,7 +640,7 @@ export const SubscriptionModal: React.FC = () => {
                 </div>
 
                 <div className="flex justify-between text-slate-500 text-[11px] pt-1">
-                  <span>Equivalente internacional aprox:</span>
+                  <span>{tr('Equivalente internacional aprox:', 'Approx. international equivalent:', 'Equivalente internacional aprox:')}</span>
                   <span className="font-mono font-medium">${(payingPricing.total / 3.75).toFixed(2)} USD</span>
                 </div>
               </div>
@@ -671,9 +678,11 @@ export const SubscriptionModal: React.FC = () => {
                 {t('plan.success_title', '¡Suscripción Activada Exitosamente!')}
               </h4>
               <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                {language === 'es'
-                  ? `Su cuenta ha sido actualizada con el ${selectedPlanToPay === 'PREMIUM' ? 'Plan Premium' : 'Plan Estándar'} por ${selectedMonths} mes(es). Todos los módulos están disponibles inmediatamente.`
-                  : `Your account has been updated with ${selectedMonths} month(s) of access.`}
+                {tr(
+                  `Su cuenta ha sido actualizada con el ${selectedPlanToPay === 'PREMIUM' ? 'Plan Premium' : 'Plan Estándar'} por ${selectedMonths} mes(es). Todos los módulos están disponibles inmediatamente.`,
+                  `Your account has been updated with ${selectedMonths} month(s) of access. All modules are available immediately.`,
+                  `Sua conta foi atualizada com ${selectedMonths} mês(es) de acesso. Todos os módulos estão disponíveis imediatamente.`
+                )}
               </p>
             </div>
           )}
