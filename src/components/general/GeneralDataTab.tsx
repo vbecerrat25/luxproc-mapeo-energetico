@@ -257,7 +257,7 @@ export const GeneralDataTab: React.FC = () => {
                 type="text"
                 value={generalData.companyName || ''}
                 onChange={(e) => updateGeneralData({ companyName: e.target.value })}
-                placeholder={tr('Ej. Calzados El Artesano S.A.C. / Residencia Familiar', 'e.g. Industrial Corp S.A.C. / Family Residence', 'Ex. Indústria S.A.C. / Residência Familiar')}
+                placeholder=""
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
               />
             </div>
@@ -271,7 +271,7 @@ export const GeneralDataTab: React.FC = () => {
                   type="text"
                   value={generalData.clientName || ''}
                   onChange={(e) => updateGeneralData({ clientName: e.target.value })}
-                  placeholder="Ej. Don Aurelio Rodríguez"
+                  placeholder=""
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -284,7 +284,7 @@ export const GeneralDataTab: React.FC = () => {
                   type="text"
                   value={generalData.ruc || ''}
                   onChange={(e) => updateGeneralData({ ruc: e.target.value })}
-                  placeholder="20608945123"
+                  placeholder=""
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -320,7 +320,7 @@ export const GeneralDataTab: React.FC = () => {
                   type="text"
                   value={generalData.economicActivity || ''}
                   onChange={(e) => updateGeneralData({ economicActivity: e.target.value })}
-                  placeholder={tr('Ej. Fabricación de calzado de vestir', 'e.g. Industrial manufacturing', 'Ex. Manufatura industrial')}
+                  placeholder=""
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -335,7 +335,7 @@ export const GeneralDataTab: React.FC = () => {
                   type="text"
                   value={generalData.phone || ''}
                   onChange={(e) => updateGeneralData({ phone: e.target.value })}
-                  placeholder="+51 944 112 233"
+                  placeholder=""
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -348,7 +348,7 @@ export const GeneralDataTab: React.FC = () => {
                   type="email"
                   value={generalData.email || ''}
                   onChange={(e) => updateGeneralData({ email: e.target.value })}
-                  placeholder="contacto@empresa.pe"
+                  placeholder=""
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -406,7 +406,7 @@ export const GeneralDataTab: React.FC = () => {
                         handlePerformCIPLookup(cipSearchInput);
                       }
                     }}
-                    placeholder={tr('Ingrese N° de Registro CIP (5 o 6 dígitos)', 'Enter CIP Registration N° (5 or 6 digits)', 'Insira o N° de Registro CIP (5 ou 6 dígitos)')}
+                    placeholder={tr('Ingrese N° de Registro CIP', 'Enter CIP Registration N°', 'Insira o N° de Registro CIP')}
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:border-indigo-600 focus:outline-none shadow-2xs"
                   />
                 </div>
@@ -458,7 +458,7 @@ export const GeneralDataTab: React.FC = () => {
                 </div>
                 <input
                   type="text"
-                  value={generalData.responsibleEngineer || currentUser?.name || 'Ing. Víctor Fernando Becerra Terán'}
+                  value={generalData.responsibleEngineer || currentUser?.name || ''}
                   readOnly
                   disabled
                   className="w-full rounded-lg border border-slate-300 bg-slate-100/90 px-3 py-2 text-xs font-bold text-slate-900 cursor-not-allowed select-none opacity-95 shadow-2xs"
@@ -478,7 +478,7 @@ export const GeneralDataTab: React.FC = () => {
                   </div>
                   <input
                     type="text"
-                    value={generalData.specialty || currentUser?.specialty || 'Ingeniero Electrónico'}
+                    value={generalData.specialty || currentUser?.specialty || ''}
                     readOnly
                     disabled
                     className="w-full rounded-lg border border-slate-300 bg-slate-100/90 px-3 py-2 text-xs font-bold text-slate-900 cursor-not-allowed select-none opacity-95 shadow-2xs"
@@ -499,7 +499,7 @@ export const GeneralDataTab: React.FC = () => {
                   </div>
                   <input
                     type="text"
-                    value={currentUser?.regionalCouncil || (generalData.department ? `CD ${generalData.department}` : 'CD La Libertad (Trujillo)')}
+                    value={currentUser?.regionalCouncil || (generalData.department ? `CD ${generalData.department}` : '')}
                     readOnly
                     disabled
                     className="w-full rounded-lg border border-slate-300 bg-slate-100/90 px-3 py-2 text-xs font-bold text-slate-900 cursor-not-allowed select-none opacity-95 shadow-2xs"
@@ -528,7 +528,7 @@ export const GeneralDataTab: React.FC = () => {
                       handlePerformCIPLookup(val);
                     }
                   }}
-                  placeholder="278034"
+                  placeholder=""
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono font-bold text-indigo-900 bg-indigo-50/40 focus:border-indigo-600 focus:outline-none"
                 />
               </div>
@@ -592,7 +592,7 @@ export const GeneralDataTab: React.FC = () => {
                 type="text"
                 value={generalData.address || ''}
                 onChange={(e) => updateGeneralData({ address: e.target.value })}
-                placeholder="Av. Sánchez Carrión 1420, Parque Industrial"
+                placeholder=""
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
               />
             </div>
@@ -606,7 +606,7 @@ export const GeneralDataTab: React.FC = () => {
                   type="text"
                   value={generalData.department || ''}
                   onChange={(e) => updateGeneralData({ department: e.target.value })}
-                  placeholder="La Libertad / Lima"
+                  placeholder=""
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -618,7 +618,7 @@ export const GeneralDataTab: React.FC = () => {
                   type="text"
                   value={generalData.province || ''}
                   onChange={(e) => updateGeneralData({ province: e.target.value })}
-                  placeholder="Trujillo / Lima"
+                  placeholder=""
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -630,7 +630,7 @@ export const GeneralDataTab: React.FC = () => {
                   type="text"
                   value={generalData.district || ''}
                   onChange={(e) => updateGeneralData({ district: e.target.value })}
-                  placeholder="El Porvenir / Surco"
+                  placeholder=""
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-amber-500 focus:outline-none"
                 />
               </div>

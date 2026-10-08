@@ -27,6 +27,19 @@ export function calculateSafetyIndex(
   groundingSystems: GroundingSystem[]
 ): IndexEvaluationResult {
   const components: ScoreComponent[] = [];
+  const hasAnySafetyData = (circuits && circuits.length > 0) || (groundingSystems && groundingSystems.length > 0);
+
+  if (!hasAnySafetyData) {
+    return {
+      score: 0,
+      grade: 'REGULAR',
+      overallStatus: 'REVISAR',
+      components: [],
+      calculationMethodology:
+        "El Índice de Seguridad Eléctrica (ISE) se calcula ponderando: Puesta a Tierra (25%), Capacidad Térmica de Cables (25%), Coordinación de Termomagnéticos (25%), Diferenciales (15%) y Caída de Tensión (10%).",
+      primaryActionRequired: 'Registre tableros, circuitos y pozo a tierra para calcular el Índice de Seguridad CNE.'
+    };
+  }
 
   // 1. Grounding System Evaluation (Weight: 25%)
   let groundingScore = 100;
@@ -206,22 +219,40 @@ export function calculateEfficiencyIndex(
   hasSolarOrVfd: boolean
 ): IndexEvaluationResult {
   const components: ScoreComponent[] = [];
+  const hasAnyEfficiencyData =
+    calculatedMonthlyKwh > 0 ||
+    receiptMonthlyKwh > 0 ||
+    (lighting && lighting.length > 0) ||
+    (powerFactor && powerFactor.currentPowerFactor > 0) ||
+    hasSolarOrVfd;
+
+  if (!hasAnyEfficiencyData) {
+    return {
+      score: 0,
+      grade: 'REGULAR',
+      overallStatus: 'REVISAR',
+      components: [],
+      calculationMethodology:
+        "El Índice de Eficiencia Energética (IEE) se calcula ponderando: Factor de Potencia y Reactiva (30%), Densidad de Iluminación W/m² (25%), Control de Consumos y Desviación de Facturación (20%) e Integración de Tecnologías Eficientes / Solar (25%).",
+      primaryActionRequired: 'Registre recibos eléctricos, censo de cargas o iluminación para calcular el Índice de Eficiencia.'
+    };
+  }
 
   // 1. Power Factor Performance (Weight: 30%)
-  const currentFp = powerFactor?.currentPowerFactor ?? 0.85;
+  const currentFp = powerFactor?.currentPowerFactor ?? 0;
   let fpScore = 100;
   let fpStatus: TrafficLight = 'ADECUADO';
-  let fpDesc = `Factor de potencia óptimo (${currentFp.toFixed(2)} ≥ 0.96).`;
+  let fpDesc = currentFp > 0 ? `Factor de potencia óptimo (${currentFp.toFixed(2)} ≥ 0.96).` : 'Sin registro de factor de potencia.';
 
-  if (currentFp < 0.80) {
+  if (currentFp > 0 && currentFp < 0.80) {
     fpScore = 20;
     fpStatus = 'NO_ADECUADO';
     fpDesc = `Factor de potencia muy deficiente (${currentFp.toFixed(2)}). Genera penalidades y sobrecarga reactiva.`;
-  } else if (currentFp < 0.90) {
+  } else if (currentFp > 0 && currentFp < 0.90) {
     fpScore = 55;
     fpStatus = 'NO_ADECUADO';
     fpDesc = `Factor de potencia bajo (${currentFp.toFixed(2)}). Aplica recargo tarifario en Perú.`;
-  } else if (currentFp < 0.96) {
+  } else if (currentFp > 0 && currentFp < 0.96) {
     fpScore = 80;
     fpStatus = 'REVISAR';
     fpDesc = `Factor de potencia ${currentFp.toFixed(2)} cercano a la meta de 0.96.`;

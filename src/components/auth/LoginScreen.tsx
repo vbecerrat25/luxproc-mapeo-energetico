@@ -13,10 +13,11 @@ import {
   Moon,
   Laptop,
   ShieldCheck,
-  Sparkles
+  Globe
 } from 'lucide-react';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail } from './firebase';
 import { UserSession } from '../../context/DiagnosticContext';
+import { useLanguage, AppLanguage } from '../../context/LanguageContext';
 import { lookupCIPRecord } from '../../utils/cipValidator';
 
 interface LoginScreenProps {
@@ -46,13 +47,15 @@ const getInitialThemePreference = (): ThemePreference => {
   } catch (e) {
     console.error(e);
   }
-  // Se auto-ajusta a la configuración de la computadora o dispositivo móvil
   return 'system';
 };
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+  const { language, setLanguage } = useLanguage();
+  const tr = (es: string, en: string, pt: string) =>
+    language === 'en' ? en : language === 'pt' ? pt : es;
+
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  // Campos en blanco al iniciar según solicitud
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -62,16 +65,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Modo de tema: 'system' (ajuste al dispositivo), 'light' (claro), 'dark' (oscuro)
   const [themePref, setThemePref] = useState<ThemePreference>(getInitialThemePreference);
   const [deviceIsDark, setDeviceIsDark] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && window.matchMedia) {
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
-    return false; // Por defecto claro
+    return false;
   });
 
-  // Escuchar cambios en la configuración del sistema del equipo o teléfono
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -97,10 +98,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  // Determinar si la pantalla debe mostrar fondo oscuro o claro
   const isDark = themePref === 'dark' || (themePref === 'system' && deviceIsDark);
 
-  // Inicializar base de cuentas preconfiguradas en localStorage
   useEffect(() => {
     try {
       const existing = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
@@ -122,7 +121,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
   }, []);
 
-  // Inicio de sesión con Google (mediante Firebase Auth oficial)
   const handleGoogleSignIn = async () => {
     setError(null);
     setIsLoading(true);
@@ -162,10 +160,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
         onLoginSuccess(session);
       } else {
-        throw new Error("No se pudo obtener la información de su cuenta de Google.");
+        throw new Error(tr(
+          'No se pudo obtener la información de su cuenta de Google.',
+          'Could not retrieve Google account information.',
+          'Não foi possível obter as informações da sua conta do Google.'
+        ));
       }
     } catch (err: any) {
-      setError(err?.message || 'Error al conectar con la autenticación oficial de Google.');
+      setError(err?.message || tr(
+        'Error al conectar con la autenticación oficial de Google.',
+        'Error connecting to official Google authentication.',
+        'Erro ao conectar com a autenticação oficial do Google.'
+      ));
     } finally {
       setIsLoading(false);
     }
@@ -177,12 +183,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail || !trimmedEmail.includes('@')) {
-      setError('Por favor, ingresa un correo electrónico válido.');
+      setError(tr(
+        'Por favor, ingresa un correo electrónico válido.',
+        'Please enter a valid email address.',
+        'Por favor, insira um e-mail válido.'
+      ));
       return;
     }
 
     if (password.length < 4) {
-      setError('La contraseña debe contener al menos 4 caracteres.');
+      setError(tr(
+        'La contraseña debe contener al menos 4 caracteres.',
+        'Password must contain at least 4 characters.',
+        'A senha deve conter pelo menos 4 caracteres.'
+      ));
       return;
     }
 
@@ -190,7 +204,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
     if (authMode === 'register') {
       if (!name.trim()) {
-        setError('Por favor ingresa tu nombre completo o razón social.');
+        setError(tr(
+          'Por favor ingresa tu nombre completo o razón social.',
+          'Please enter your full name or company name.',
+          'Por favor, insira seu nome completo ou razão social.'
+        ));
         setIsLoading(false);
         return;
       }
@@ -240,7 +258,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       onLoginSuccess(session);
 
     } else {
-      // Modo Iniciar Sesión
       try {
         await signInWithEmail(trimmedEmail, password);
       } catch {
@@ -322,7 +339,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <button
           type="button"
           onClick={() => changeTheme('light')}
-          title="Fondo claro"
+          title={tr('Fondo claro', 'Light mode', 'Modo claro')}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
             themePref === 'light'
               ? 'bg-amber-500 text-slate-950 shadow-xs'
@@ -330,13 +347,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           }`}
         >
           <Sun className="w-3.5 h-3.5" />
-          <span>Claro</span>
+          <span>{tr('Claro', 'Light', 'Claro')}</span>
         </button>
 
         <button
           type="button"
           onClick={() => changeTheme('system')}
-          title="Se adapta a la configuración de tu computadora o dispositivo móvil"
+          title={tr('Se adapta a la configuración de tu dispositivo', 'Adapts to your device theme', 'Adapta-se ao tema do seu dispositivo')}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
             themePref === 'system'
               ? (isDark ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-800 text-white shadow-xs')
@@ -344,13 +361,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           }`}
         >
           <Laptop className="w-3.5 h-3.5" />
-          <span>Auto {themePref === 'system' ? (deviceIsDark ? '(Oscuro)' : '(Claro)') : ''}</span>
+          <span>Auto {themePref === 'system' ? (deviceIsDark ? `(${tr('Oscuro', 'Dark', 'Escuro')})` : `(${tr('Claro', 'Light', 'Claro')})`) : ''}</span>
         </button>
 
         <button
           type="button"
           onClick={() => changeTheme('dark')}
-          title="Fondo oscuro"
+          title={tr('Fondo oscuro', 'Dark mode', 'Modo escuro')}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
             themePref === 'dark'
               ? 'bg-amber-500 text-slate-950 shadow-xs'
@@ -358,20 +375,46 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           }`}
         >
           <Moon className="w-3.5 h-3.5" />
-          <span>Oscuro</span>
+          <span>{tr('Oscuro', 'Dark', 'Escuro')}</span>
         </button>
       </div>
 
-      {/* Indicador de Norma CNE / RNE superior */}
-      <div 
-        className={`absolute top-4 sm:top-6 right-4 sm:right-6 z-20 hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold shadow-sm backdrop-blur-md ${
-          isDark 
-            ? 'bg-slate-900/90 border-slate-800 text-slate-300' 
-            : 'bg-white/95 border-slate-300 text-slate-700 shadow-slate-300/50'
-        }`}
-      >
-        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-        <span>Normativa CNE Suministro & Utilización</span>
+      {/* Selector de Idioma y Norma CNE / RNE superior */}
+      <div className="absolute top-4 sm:top-6 right-4 sm:right-6 z-20 flex items-center gap-2">
+        <div
+          className={`flex items-center gap-1 p-1 rounded-full border text-xs font-bold shadow-sm backdrop-blur-md ${
+            isDark
+              ? 'bg-slate-900/90 border-slate-800 text-slate-300'
+              : 'bg-white/95 border-slate-300 text-slate-700'
+          }`}
+        >
+          <Globe className="w-3.5 h-3.5 ml-1.5 text-amber-500" />
+          {(['es', 'en', 'pt'] as AppLanguage[]).map(lang => (
+            <button
+              key={lang}
+              type="button"
+              onClick={() => setLanguage(lang)}
+              className={`px-2 py-0.5 rounded-full text-[11px] uppercase transition-all cursor-pointer ${
+                language === lang
+                  ? 'bg-amber-500 text-slate-950 font-black'
+                  : 'hover:opacity-80'
+              }`}
+            >
+              {lang}
+            </button>
+          ))}
+        </div>
+
+        <div 
+          className={`hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold shadow-sm backdrop-blur-md ${
+            isDark 
+              ? 'bg-slate-900/90 border-slate-800 text-slate-300' 
+              : 'bg-white/95 border-slate-300 text-slate-700 shadow-slate-300/50'
+          }`}
+        >
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span>{tr('Normativa CNE Suministro & Utilización', 'CNE / NEC Electrical Standards', 'Norma Elétrica CNE / NBR')}</span>
+        </div>
       </div>
 
       {/* Fondo Arquitectónico / Técnico sutil */}
@@ -435,7 +478,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           <p className={`text-xs font-semibold tracking-wide uppercase mt-1.5 ${
             isDark ? 'text-slate-300' : 'text-slate-500'
           }`}>
-            Plataforma de Auditoría & Peritaje Eléctrico CNE
+            {tr(
+              'Plataforma de Auditoría & Peritaje Eléctrico CNE',
+              'CNE Electrical Audit & Diagnostic Platform',
+              'Plataforma de Auditoria e Perícia Elétrica CNE'
+            )}
           </p>
         </div>
 
@@ -450,23 +497,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 ? 'bg-white hover:bg-slate-100 active:scale-[0.99] text-slate-900 shadow-md'
                 : 'bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-800 border border-slate-300 shadow-sm hover:shadow hover:border-slate-400'
             }`}
-            title="Iniciar sesión con la ventana oficial de Google"
+            title={tr('Iniciar sesión con Google', 'Sign in with Google', 'Entrar com o Google')}
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin text-slate-700" />
-                <span>Abriendo ventana de Google...</span>
+                <span>{tr('Abriendo ventana de Google...', 'Opening Google window...', 'Abrindo janela do Google...')}</span>
               </>
             ) : (
               <>
-                {/* SVG oficial de Google */}
                 <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
                   <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/>
                   <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
                   <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
                 </svg>
-                <span>Continuar con Google</span>
+                <span>{tr('Continuar con Google', 'Continue with Google', 'Continuar com o Google')}</span>
               </>
             )}
           </button>
@@ -478,7 +524,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           <span className={`px-3 text-[10px] uppercase font-bold tracking-wider whitespace-nowrap ${
             isDark ? 'bg-slate-900 text-slate-500' : 'bg-white text-slate-500'
           }`}>
-            o con credenciales de ingeniero
+            {tr('o con credenciales de ingeniero', 'or with engineer credentials', 'ou com credenciais de engenheiro')}
           </span>
           <div className={`border-t w-full ${isDark ? 'border-slate-800' : 'border-slate-300'}`} />
         </div>
@@ -499,7 +545,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-950')
             }`}
           >
-            Iniciar Sesión
+            {tr('Iniciar Sesión', 'Sign In', 'Iniciar Sessão')}
           </button>
           <button
             type="button"
@@ -513,7 +559,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-950')
             }`}
           >
-            Registrarse
+            {tr('Registrarse', 'Register', 'Cadastrar-se')}
           </button>
         </div>
 
@@ -537,7 +583,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1 ${
                 isDark ? 'text-slate-300' : 'text-slate-700'
               }`}>
-                Nombre Completo y Título
+                {tr('Nombre Completo y Título', 'Full Name & Title', 'Nome Completo e Título')}
               </label>
               <div className="relative">
                 <User className={`absolute left-3 top-2.5 h-4 w-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -546,7 +592,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej. Ing. Víctor Fernando Becerra Terán"
+                  placeholder=""
+                  autoComplete="off"
                   className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-medium border transition-all ${
                     isDark
                       ? 'bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500'
@@ -561,7 +608,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1 ${
               isDark ? 'text-slate-300' : 'text-slate-700'
             }`}>
-              Correo Electrónico
+              {tr('Correo Electrónico', 'Email Address', 'E-mail')}
             </label>
             <div className="relative">
               <Mail className={`absolute left-3 top-2.5 h-4 w-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -570,7 +617,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="correo@ejemplo.com"
+                placeholder=""
+                autoComplete="off"
                 className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-medium border transition-all ${
                   isDark
                     ? 'bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500'
@@ -586,7 +634,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1 ${
                   isDark ? 'text-slate-300' : 'text-slate-700'
                 }`}>
-                  Rol Profesional
+                  {tr('Rol Profesional', 'Professional Role', 'Função Profissional')}
                 </label>
                 <select
                   value={role}
@@ -597,9 +645,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       : 'bg-slate-50/70 border-slate-300 text-slate-900 focus:outline-none focus:border-amber-500'
                   }`}
                 >
-                  <option value="INGENIERO_CIP">Ingeniero CIP</option>
-                  <option value="AUDITOR_ENERGETICO">Auditor Energético</option>
-                  <option value="CLIENTE">Cliente / Gerente</option>
+                  <option value="INGENIERO_CIP">{tr('Ingeniero CIP', 'CIP Engineer', 'Engenheiro CIP')}</option>
+                  <option value="AUDITOR_ENERGETICO">{tr('Auditor Energético', 'Energy Auditor', 'Auditor Energético')}</option>
+                  <option value="CLIENTE">{tr('Cliente / Gerente', 'Client / Manager', 'Cliente / Gerente')}</option>
                 </select>
               </div>
 
@@ -607,7 +655,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1 ${
                   isDark ? 'text-slate-300' : 'text-slate-700'
                 }`}>
-                  N° Registro CIP
+                  {tr('N° Registro CIP', 'CIP Reg. Number', 'N° Registro CIP')}
                 </label>
                 <div className="relative">
                   <Award className={`absolute left-3 top-2.5 h-4 w-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -615,7 +663,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     type="text"
                     value={cipNumber}
                     onChange={(e) => setCipNumber(e.target.value)}
-                    placeholder="Ej. 278034"
+                    placeholder=""
+                    autoComplete="off"
                     className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-medium border transition-all ${
                       isDark
                         ? 'bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500'
@@ -631,7 +680,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1 ${
               isDark ? 'text-slate-300' : 'text-slate-700'
             }`}>
-              Contraseña
+              {tr('Contraseña', 'Password', 'Senha')}
             </label>
             <div className="relative">
               <Lock className={`absolute left-3 top-2.5 h-4 w-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -640,7 +689,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder=""
+                autoComplete="new-password"
                 className={`w-full pl-9 pr-10 py-2 rounded-xl text-xs font-medium border transition-all ${
                   isDark
                     ? 'bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500'
@@ -668,43 +718,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Autenticando...</span>
+                <span>{tr('Autenticando...', 'Authenticating...', 'Autenticando...')}</span>
               </>
             ) : (
               <>
-                <span>{authMode === 'register' ? 'Registrarse y Comenzar' : 'Ingresar a la Plataforma'}</span>
+                <span>
+                  {authMode === 'register'
+                    ? tr('Registrarse y Comenzar', 'Register & Start', 'Cadastrar e Começar')
+                    : tr('Ingresar a la Plataforma', 'Enter Platform', 'Entrar na Plataforma')}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
         </form>
-
-        {/* Acceso Rápido Usuario Maestro CIP (Validado por Google) */}
-        <div className={`mt-5 p-3.5 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
-          isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-950'
-        }`}>
-          <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-5 h-5 text-amber-500 shrink-0" />
-            <div>
-              <div className="flex items-center gap-1.5 font-bold">
-                <span>Usuario Maestro CIP</span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-600 text-white font-mono uppercase">Google OK</span>
-              </div>
-              <span className="font-mono text-[11px] text-slate-500">luxproc.11@gmail.com</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail('luxproc.11@gmail.com');
-              setPassword('password123');
-              setAuthMode('login');
-            }}
-            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer shadow-2xs shrink-0"
-          >
-            Autocompletar
-          </button>
-        </div>
 
       </div>
 

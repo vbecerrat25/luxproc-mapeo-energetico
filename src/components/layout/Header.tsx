@@ -277,6 +277,42 @@ export const Header: React.FC = () => {
             )}
           </div>
 
+          {/* Subscription Plan Button (Plan Estándar / Plan Premium) */}
+          <button
+            type="button"
+            onClick={() => setIsSubscriptionModalOpen(true)}
+            className={`flex items-center gap-1.5 p-1.5 sm:p-2 lg:px-3 lg:py-2 rounded-xl border text-xs font-bold transition-all shadow-2xs cursor-pointer shrink-0 ${
+              subscriptionPlan === 'PREMIUM'
+                ? 'border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 shadow-xs'
+                : 'border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-900'
+            }`}
+            title={
+              language === 'en'
+                ? 'Manage Subscription Plan (Standard / Premium)'
+                : language === 'pt'
+                ? 'Gerenciar Plano de Assinatura (Padrão / Premium)'
+                : 'Gestionar Plan de Suscripción (Estándar / Premium)'
+            }
+          >
+            {subscriptionPlan === 'PREMIUM' ? (
+              <Sparkles className="h-3.5 w-3.5 text-amber-300 shrink-0" />
+            ) : (
+              <CreditCard className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+            )}
+            <span className="hidden md:inline">
+              {subscriptionPlan === 'PREMIUM'
+                ? language === 'en' ? 'Premium Plan' : language === 'pt' ? 'Plano Premium' : 'Plan Premium'
+                : language === 'en' ? 'Standard Plan' : language === 'pt' ? 'Plano Padrão' : 'Plan Estándar'}
+            </span>
+            <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-black uppercase ${
+              subscriptionPlan === 'PREMIUM'
+                ? 'bg-amber-400 text-slate-950'
+                : 'bg-indigo-600 text-white'
+            }`}>
+              {subscriptionPlan === 'PREMIUM' ? 'PRO' : 'S/ 20'}
+            </span>
+          </button>
+
           {/* Limpiar Plataforma para Nuevo Proyecto */}
           <button
             type="button"
@@ -845,34 +881,54 @@ export const Header: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Action Buttons (Only Official Report & Close, no Logout or Reference CIP) */}
-              <div className="pt-2 flex flex-col gap-2">
+            {/* Sticky Bottom Footer with Action Buttons (Official Report, Logout & Close) */}
+            <div className="sticky bottom-0 z-30 bg-white border-t border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex flex-col gap-2 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUserModal(false);
+                  setActiveTab('report');
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
+              >
+                <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>
+                  {language === 'en'
+                    ? 'View Official CIP Report'
+                    : language === 'pt'
+                    ? 'Ver Relatório Oficial CIP'
+                    : 'Ver Informe Oficial CIP'}
+                </span>
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setShowUserModal(false);
-                    setActiveTab('report');
+                    logout();
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
-                  <FileText className="w-4 h-4 text-amber-400" />
+                  <LogOut className="w-4 h-4 text-white shrink-0" />
                   <span>
                     {language === 'en'
-                      ? 'View Official CIP Report'
+                      ? 'Sign Out'
                       : language === 'pt'
-                      ? 'Ver Relatório Oficial CIP'
-                      : 'Ver Informe Oficial CIP'}
+                      ? 'Sair da Conta'
+                      : 'Cerrar Sesión'}
                   </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setShowUserModal(false)}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5 text-slate-500" />
-                  <span>{language === 'en' ? 'Close' : language === 'pt' ? 'Fechar' : 'Cerrar'}</span>
+                  <X className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>{language === 'en' ? 'Close' : language === 'pt' ? 'Fechar' : 'Cerrar Ventana'}</span>
                 </button>
               </div>
             </div>

@@ -192,24 +192,24 @@ export function createBlankDiagnostic(engineerName: string = 'Ing. Víctor Ferna
       specialty: 'Ingeniero Electrónico',
       professionalCollege: 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)',
       address: '',
-      city: 'Trujillo',
-      department: 'La Libertad',
-      province: 'Trujillo',
-      district: 'Trujillo',
+      city: '',
+      department: '',
+      province: '',
+      district: '',
       phone: '',
       email: '',
       installationType: 'comercio',
-      economicActivity: 'Comercial / Servicios',
-      workerCount: 5,
-      workSchedule: 'Lunes a Viernes 08:00 - 18:00',
+      economicActivity: '',
+      workerCount: 0,
+      workSchedule: '',
       shiftsCount: 1,
-      workDaysPerWeek: 5,
-      totalAreaM2: 120,
-      builtAreaM2: 100,
+      workDaysPerWeek: 6,
+      totalAreaM2: 0,
+      builtAreaM2: 0,
       observations: ''
     },
     tariff: {
-      distributor: 'Luz del Sur',
+      distributor: 'Luz del Sur S.A.A.',
       tariffCode: 'BT5B',
       supplyVoltage: 220,
       phases: 'MONOFASICO',
@@ -225,7 +225,7 @@ export function createBlankDiagnostic(engineerName: string = 'Ing. Víctor Ferna
     circuits: [],
     grounding: [],
     powerFactor: {
-      currentPowerFactor: 0.90,
+      currentPowerFactor: 0,
       targetPowerFactor: 0.98,
       requiredCapacitorKvar: 0,
       monthlyPenaltyAvoidedSoles: 0,
@@ -233,14 +233,16 @@ export function createBlankDiagnostic(engineerName: string = 'Ing. Víctor Ferna
       paybackMonths: 0
     },
     solar: {
-      scenarioKwp: 3.0,
+      scenarioKwp: 0,
       dailyHsp: 5.0,
-      panelCount: 6,
+      panelCount: 0,
       panelPowerW: 550,
-      monthlyGenerationKwh: 380,
-      annualGenerationKwh: 4560,
-      paybackYears: 3.8,
-      co2AvoidedTonsPerYear: 1.8
+      monthlyGenerationKwh: 0,
+      annualGenerationKwh: 0,
+      estimatedInvestmentSoles: 0,
+      annualSavingsSoles: 0,
+      paybackYears: 0,
+      co2AvoidedTonsPerYear: 0
     },
     opportunities: [],
     photos: [],
@@ -253,9 +255,9 @@ export function createBlankDiagnostic(engineerName: string = 'Ing. Víctor Ferna
         monthlyCostSoles: 0,
         installedPowerKw: 0,
         maxDemandKw: 0,
-        powerFactor: 0.90,
-        safetyScore: 60,
-        efficiencyScore: 60,
+        powerFactor: 0,
+        safetyScore: 0,
+        efficiencyScore: 0,
         annualSavingsSoles: 0
       },
       proposed: {
@@ -265,8 +267,8 @@ export function createBlankDiagnostic(engineerName: string = 'Ing. Víctor Ferna
         installedPowerKw: 0,
         maxDemandKw: 0,
         powerFactor: 0.98,
-        safetyScore: 95,
-        efficiencyScore: 92,
+        safetyScore: 100,
+        efficiencyScore: 100,
         annualSavingsSoles: 0
       }
     },
@@ -280,12 +282,13 @@ const DiagnosticContext = createContext<DiagnosticContextType | undefined>(undef
 const LOCAL_STORAGE_KEY = 'e_diagnosis_current_project_v1';
 
 function normalizeDiagnostic(raw: any): CompleteDiagnostic {
-  if (!raw || typeof raw !== 'object') return DEMO_PLANTA_INDUSTRIAL;
+  const blankBase = createBlankDiagnostic();
+  if (!raw || typeof raw !== 'object') return blankBase;
   return {
-    ...DEMO_PLANTA_INDUSTRIAL,
+    ...blankBase,
     ...raw,
-    generalData: { ...DEMO_PLANTA_INDUSTRIAL.generalData, ...(raw.generalData || {}) },
-    tariff: { ...DEMO_PLANTA_INDUSTRIAL.tariff, ...(raw.tariff || {}) },
+    generalData: { ...blankBase.generalData, ...(raw.generalData || {}) },
+    tariff: { ...blankBase.tariff, ...(raw.tariff || {}) },
     equipment: Array.isArray(raw.equipment) ? raw.equipment : [],
     circuits: Array.isArray(raw.circuits) ? raw.circuits : [],
     panels: Array.isArray(raw.panels) ? raw.panels : [],
@@ -294,8 +297,8 @@ function normalizeDiagnostic(raw: any): CompleteDiagnostic {
     receipts: Array.isArray(raw.receipts) ? raw.receipts : [],
     photos: Array.isArray(raw.photos) ? raw.photos : [],
     opportunities: Array.isArray(raw.opportunities) ? raw.opportunities : [],
-    powerFactor: { ...DEMO_PLANTA_INDUSTRIAL.powerFactor, ...(raw.powerFactor || {}) },
-    solar: raw.solar ? { ...DEMO_PLANTA_INDUSTRIAL.solar, ...raw.solar } : undefined
+    powerFactor: { ...blankBase.powerFactor, ...(raw.powerFactor || {}) },
+    solar: raw.solar ? { ...blankBase.solar, ...raw.solar } : blankBase.solar
   };
 }
 
@@ -960,7 +963,10 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
         clientName: '',
         companyName: '',
         ruc: '',
-        responsibleEngineer: 'Ing. Colegiado CIP',
+        responsibleEngineer: currentUser?.name || 'Ing. Víctor Fernando Becerra Terán',
+        cipNumber: currentUser?.cipNumber || '278034',
+        specialty: currentUser?.specialty || 'Ingeniero Electrónico',
+        professionalCollege: currentUser?.professionalCollege || 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)',
         address: '',
         city: cfg.city,
         department: cfg.department,
@@ -970,12 +976,12 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
         email: '',
         installationType: type,
         economicActivity: cfg.activity,
-        workerCount: cfg.workers,
-        workSchedule: cfg.schedule,
+        workerCount: 0,
+        workSchedule: '',
         shiftsCount: 1,
         workDaysPerWeek: cfg.days,
-        totalAreaM2: 250,
-        builtAreaM2: 220,
+        totalAreaM2: 0,
+        builtAreaM2: 0,
         observations: ''
       },
       tariff: {
@@ -985,7 +991,7 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
         phases: cfg.phases,
         activeEnergyPriceKwh: 0.72,
         reactiveEnergyPenaltyPriceKvarh: 0.145,
-        fixedMonthlyChargeSoles: 12.50,
+        fixedMonthlyChargeSoles: 5.50,
         igvRatePercent: 18
       },
       receipts: [],
@@ -995,22 +1001,24 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
       circuits: [],
       grounding: [],
       powerFactor: {
-        currentPowerFactor: 0.86,
+        currentPowerFactor: 0,
         targetPowerFactor: 0.98,
-        requiredCapacitorKvar: 5.0,
-        monthlyPenaltyAvoidedSoles: 120,
-        estimatedInvestmentSoles: 2200,
-        paybackMonths: 14.5
+        requiredCapacitorKvar: 0,
+        monthlyPenaltyAvoidedSoles: 0,
+        estimatedInvestmentSoles: 0,
+        paybackMonths: 0
       },
       solar: {
-        scenarioKwp: 5.0,
+        scenarioKwp: 0,
         dailyHsp: 5.2,
-        panelCount: 9,
+        panelCount: 0,
         panelPowerW: 550,
-        monthlyGenerationKwh: 620,
-        annualGenerationKwh: 7440,
-        paybackYears: 3.5,
-        co2AvoidedTonsPerYear: 3.1
+        monthlyGenerationKwh: 0,
+        annualGenerationKwh: 0,
+        estimatedInvestmentSoles: 0,
+        annualSavingsSoles: 0,
+        paybackYears: 0,
+        co2AvoidedTonsPerYear: 0
       },
       opportunities: [],
       photos: [],
@@ -1023,9 +1031,9 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
           monthlyCostSoles: 0,
           installedPowerKw: 0,
           maxDemandKw: 0,
-          powerFactor: 0.86,
-          safetyScore: 50,
-          efficiencyScore: 50,
+          powerFactor: 0,
+          safetyScore: 0,
+          efficiencyScore: 0,
           annualSavingsSoles: 0
         },
         proposed: {
@@ -1035,8 +1043,8 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
           installedPowerKw: 0,
           maxDemandKw: 0,
           powerFactor: 0.98,
-          safetyScore: 95,
-          efficiencyScore: 90,
+          safetyScore: 100,
+          efficiencyScore: 100,
           annualSavingsSoles: 0
         }
       },
@@ -1044,17 +1052,24 @@ export const DiagnosticProvider: React.FC<{ children: ReactNode }> = ({ children
       updatedAt: new Date().toISOString()
     };
     setDiagnostic(newDiag);
-    setActiveTab('EQUIPMENT');
+    try {
+      localStorage.removeItem('e_diagnosis_wiring_verification_v1');
+      window.dispatchEvent(new CustomEvent('e_diagnosis_workspace_cleaned'));
+    } catch {}
+    setActiveTab('general');
   };
 
-  // Limpiar toda la plataforma web para generar un nuevo proyecto desde cero
+  // Limpiar toda la plataforma web para generar un nuevo proyecto desde cero (preservando Trabajos Realizados)
   const clearActiveWorkspace = () => {
     const blank = createBlankDiagnostic(currentUser?.name, currentUser?.cipNumber);
     setDiagnostic(blank);
     try {
       const userKey = getUserProjectKey(currentUser?.email);
       localStorage.removeItem(userKey);
+      localStorage.removeItem('e_diagnosis_current_project_v1');
+      localStorage.removeItem('e_diagnosis_wiring_verification_v1');
       localStorage.setItem(userKey, JSON.stringify(blank));
+      window.dispatchEvent(new CustomEvent('e_diagnosis_workspace_cleaned'));
     } catch (e) {
       console.error('Error al limpiar plataforma web:', e);
     }

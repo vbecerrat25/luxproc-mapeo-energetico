@@ -4,6 +4,16 @@ import { evaluatePeruvianTariffs } from './calculosTarifas';
 
 export function generateSavingsOpportunities(diag: CompleteDiagnostic): SavingsOpportunity[] {
   const opportunities: SavingsOpportunity[] = [];
+  const hasAnyData =
+    (diag.equipment && diag.equipment.length > 0) ||
+    (diag.receipts && diag.receipts.length > 0) ||
+    (diag.lighting && diag.lighting.length > 0) ||
+    (diag.circuits && diag.circuits.length > 0);
+
+  if (!hasAnyData) {
+    return [];
+  }
+
   const tariffRate = diag.tariff?.activeEnergyPriceKwh || 0.75;
 
   // 0. Peruvian Tariff Migration Opportunity (OSINERGMIN)
@@ -24,7 +34,7 @@ export function generateSavingsOpportunities(diag: CompleteDiagnostic): SavingsO
   }
 
   // 1. Power Factor Compensation Opportunity
-  if (diag.powerFactor && (diag.powerFactor.currentPowerFactor ?? 0.85) < 0.96) {
+  if (diag.powerFactor && (diag.powerFactor.currentPowerFactor ?? 0) > 0 && (diag.powerFactor.currentPowerFactor ?? 1) < 0.96) {
     const currentFp = diag.powerFactor.currentPowerFactor ?? 0.85;
     const annualPenalty = diag.powerFactor.annualSavingsSoles || 0;
     const inv = diag.powerFactor.estimatedInvestmentSoles || 2800;

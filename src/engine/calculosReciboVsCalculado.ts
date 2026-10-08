@@ -41,7 +41,7 @@ export function analyzeReceiptsHistory(receipts: ReceiptRecord[]): ReceiptsStati
       averageEffectiveTariffPerKwh: 0.75,
       annualTotalKwh: 0,
       annualTotalCostSoles: 0,
-      averagePowerFactor: 0.85,
+      averagePowerFactor: 0,
       monthlyVariationPercent: 0
     };
   }

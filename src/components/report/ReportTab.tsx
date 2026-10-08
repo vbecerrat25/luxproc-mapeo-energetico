@@ -71,9 +71,13 @@ export const ReportTab: React.FC = () => {
     computedSavingsOpportunities,
     computedBom,
     setActiveTab,
-    updateGeneralData
+    updateGeneralData,
+    subscriptionPlan,
+    isMasterUser,
+    setIsSubscriptionModalOpen
   } = useDiagnostic();
   const { t, language } = useLanguage();
+  const isProPlan = subscriptionPlan === 'PRO' || isMasterUser;
 
   // Helper de traducción dinámico para todo el informe técnico oficial
   const rt = (esText: string, enText: string, ptText?: string): string => {
@@ -99,24 +103,48 @@ export const ReportTab: React.FC = () => {
   const isCipNotHabilitado = Boolean(cipRecord && cipRecord.status === 'NO_HABILITADO');
   const isReportBlocked = isCipNotFound || isCipNotHabilitado;
 
-  // Configuración de módulos seleccionables para el informe
+  // Configuración de módulos seleccionables para el informe (según plan de suscripción)
   const [sections, setSections] = useState<ReportSectionsConfig>({
     generalData: true,
     balanceCharts: true,
     topEquipmentRanking: true,
     panelsAndCircuits: true,
-    lightingModule: true,
+    lightingModule: isProPlan,
     groundingModule: true,
-    powerFactor: true,
-    solarModule: !!diagnostic.solar,
-    savingsPlan: true,
+    powerFactor: isProPlan,
+    solarModule: isProPlan && !!diagnostic.solar,
+    savingsPlan: isProPlan,
     allRecommendations: true,
     cipStatement: true
   });
 
+  // Sincronizar secciones PRO cuando cambia el plan de suscripción
+  React.useEffect(() => {
+    if (!isProPlan) {
+      setSections(prev => ({
+        ...prev,
+        lightingModule: false,
+        powerFactor: false,
+        solarModule: false,
+        savingsPlan: false
+      }));
+    }
+  }, [isProPlan]);
+
   const [showConfigDrawer, setShowConfigDrawer] = useState(true);
 
+  const proSectionKeys: (keyof ReportSectionsConfig)[] = [
+    'lightingModule',
+    'powerFactor',
+    'solarModule',
+    'savingsPlan'
+  ];
+
   const toggleSection = (key: keyof ReportSectionsConfig) => {
+    if (!isProPlan && proSectionKeys.includes(key)) {
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
     setSections(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -126,11 +154,11 @@ export const ReportTab: React.FC = () => {
       balanceCharts: select,
       topEquipmentRanking: select,
       panelsAndCircuits: select,
-      lightingModule: select,
+      lightingModule: isProPlan ? select : false,
       groundingModule: select,
-      powerFactor: select,
-      solarModule: select,
-      savingsPlan: select,
+      powerFactor: isProPlan ? select : false,
+      solarModule: isProPlan ? select : false,
+      savingsPlan: isProPlan ? select : false,
       allRecommendations: select,
       cipStatement: select
     });
@@ -155,6 +183,10 @@ export const ReportTab: React.FC = () => {
         cipStatement: true
       });
     } else if (preset === 'lighting') {
+      if (!isProPlan) {
+        setIsSubscriptionModalOpen(true);
+        return;
+      }
       setSections({
         generalData: true,
         balanceCharts: false,
@@ -174,11 +206,11 @@ export const ReportTab: React.FC = () => {
         balanceCharts: true,
         topEquipmentRanking: true,
         panelsAndCircuits: false,
-        lightingModule: true,
+        lightingModule: isProPlan,
         groundingModule: false,
-        powerFactor: true,
-        solarModule: true,
-        savingsPlan: true,
+        powerFactor: isProPlan,
+        solarModule: isProPlan,
+        savingsPlan: isProPlan,
         allRecommendations: true,
         cipStatement: true
       });
@@ -194,35 +226,178 @@ export const ReportTab: React.FC = () => {
     setIsGeneratingPdf(true);
 
     try {
-      const element = reportContainerRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
+      const container = reportContainerRef.current;
 
-      const imgData = canvas.toDataURL('image/png');
+      // Convert modern CSS color functions (oklch, oklab, color-mix) to rgb/rgba for html2canvas
+      const colorCanvas = document.createElement('canvas');
+      colorCanvas.width = 1;
+      colorCanvas.height = 1;
+      const colorCtx = colorCanvas.getContext('2d', { willReadFrequently: true });
+      const colorCache = new Map<string, string>();
+
+      const toSafeRgb = (val: string, fallback = '#0f172a'): string => {
+        if (!val) return val;
+        const cached = colorCache.get(val);
+        if (cached) return cached;
+        if (!colorCtx) return fallback;
+        try {
+          colorCtx.clearRect(0, 0, 1, 1);
+          colorCtx.fillStyle = '#000000';
+          colorCtx.fillStyle = val;
+          colorCtx.fillRect(0, 0, 1, 1);
+          const [r, g, b, a] = colorCtx.getImageData(0, 0, 1, 1).data;
+          const result =
+            a === 0
+              ? 'transparent'
+              : a === 255
+              ? `rgb(${r}, ${g}, ${b})`
+              : `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
+          colorCache.set(val, result);
+          return result;
+        } catch {
+          return fallback;
+        }
+      };
+
+      const replaceModernColorsInCss = (cssText: string): string => {
+        if (!cssText) return cssText;
+        return cssText
+          .replace(/color-mix\([^;{}]+\)/gi, (match) => toSafeRgb(match, '#64748b'))
+          .replace(/oklch\([^)]+\)/gi, (match) => toSafeRgb(match, '#0f172a'))
+          .replace(/oklab\([^)]+\)/gi, (match) => toSafeRgb(match, '#0f172a'));
+      };
+
+      const sanitizeClonedDoc = (clonedDoc: Document) => {
+        const styleTags = clonedDoc.querySelectorAll('style');
+        styleTags.forEach((styleEl) => {
+          if (
+            styleEl.textContent &&
+            (styleEl.textContent.includes('oklch') ||
+              styleEl.textContent.includes('oklab') ||
+              styleEl.textContent.includes('color-mix'))
+          ) {
+            styleEl.textContent = replaceModernColorsInCss(styleEl.textContent);
+          }
+        });
+
+        const linkTags = clonedDoc.querySelectorAll('link[rel="stylesheet"]');
+        linkTags.forEach((linkEl) => {
+          try {
+            const sheet = (linkEl as HTMLLinkElement).sheet;
+            if (sheet && sheet.cssRules) {
+              let cssContent = '';
+              for (let i = 0; i < sheet.cssRules.length; i++) {
+                cssContent += sheet.cssRules[i].cssText + '\n';
+              }
+              if (
+                cssContent.includes('oklch') ||
+                cssContent.includes('oklab') ||
+                cssContent.includes('color-mix')
+              ) {
+                const inlineStyle = clonedDoc.createElement('style');
+                inlineStyle.textContent = replaceModernColorsInCss(cssContent);
+                linkEl.parentNode?.replaceChild(inlineStyle, linkEl);
+              }
+            }
+          } catch {
+            // Ignore cross-origin stylesheets
+          }
+        });
+
+        const allElements = clonedDoc.querySelectorAll('*');
+        const win = clonedDoc.defaultView || window;
+
+        allElements.forEach((node) => {
+          const el = node as HTMLElement | SVGElement;
+          if (!el.style) return;
+          const computed = win.getComputedStyle(el);
+          if (!computed) return;
+
+          for (let i = 0; i < computed.length; i++) {
+            const propName = computed[i];
+            const propVal = computed.getPropertyValue(propName);
+            if (
+              propVal &&
+              (propVal.includes('oklch') || propVal.includes('oklab') || propVal.includes('color-mix'))
+            ) {
+              if (propName.includes('shadow')) {
+                el.style.setProperty(propName, 'none', 'important');
+              } else if (propName.includes('image')) {
+                el.style.setProperty(propName, 'none', 'important');
+                if (
+                  !el.style.backgroundColor ||
+                  el.style.backgroundColor === 'transparent' ||
+                  el.style.backgroundColor === 'rgba(0, 0, 0, 0)'
+                ) {
+                  el.style.setProperty('background-color', '#f8fafc', 'important');
+                }
+              } else {
+                el.style.setProperty(propName, replaceModernColorsInCss(propVal), 'important');
+              }
+            }
+          }
+
+          if (el instanceof SVGElement) {
+            ['fill', 'stroke', 'stop-color', 'color'].forEach((attr) => {
+              const attrVal = el.getAttribute(attr);
+              if (
+                attrVal &&
+                (attrVal.includes('oklch') || attrVal.includes('oklab') || attrVal.includes('color-mix'))
+              ) {
+                el.setAttribute(attr, replaceModernColorsInCss(attrVal));
+              }
+            });
+          }
+        });
+      };
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
 
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      const pageElements = Array.from(
+        container.querySelectorAll<HTMLElement>('.report-page-sheet')
+      );
+      const targets = pageElements.length > 0 ? pageElements : [container];
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      const pdfPageWidth = 210; // A4 width in mm
+      const pdfPageHeight = 297; // A4 height in mm
+      const marginMm = 8; // Clean formal margin around each sheet
+      const maxContentWidth = pdfPageWidth - marginMm * 2;
+      const maxContentHeight = pdfPageHeight - marginMm * 2;
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      for (let i = 0; i < targets.length; i++) {
+        const sheetEl = targets[i];
+        const canvas = await html2canvas(sheetEl, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowWidth: 1024,
+          onclone: sanitizeClonedDoc
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        let renderWidth = maxContentWidth;
+        let renderHeight = (canvas.height * renderWidth) / canvas.width;
+
+        // If a sheet is slightly taller than A4 height, scale proportionally so it fits cleanly on its sheet without slicing
+        if (renderHeight > maxContentHeight) {
+          const ratio = maxContentHeight / renderHeight;
+          renderHeight = maxContentHeight;
+          renderWidth = renderWidth * ratio;
+        }
+
+        const offsetX = (pdfPageWidth - renderWidth) / 2;
+        const offsetY = marginMm;
+
+        pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderWidth, renderHeight);
       }
 
       const clientClean = (generalData.companyName || generalData.clientName || 'PROYECTO').replace(/[^a-zA-Z0-9]/g, '_');
@@ -262,7 +437,7 @@ export const ReportTab: React.FC = () => {
     const factorPercent = rawFactor > 2 ? Math.round(rawFactor) : Math.round(rawFactor * 100);
     const isOverloaded = factorPercent > 100;
     const isMonofasico = eq.phases === 'MONOFASICO' || eq.phases === 'MONOFASICA';
-    const system = isMonofasico ? 'Monofásico' : 'Trifásico';
+    const system = isMonofasico ? rt('Monofásico', 'Single-Phase', 'Monofásico') : rt('Trifásico', 'Three-Phase', 'Trifásico');
     const monthlyCost = eq.monthlyCostSoles ?? (eq.monthlyKwh * (tariff.activeEnergyPriceKwh || 0.685));
     
     // Si opera con sobrecarga (>100%), calculamos el exceso de pago por ineficiencia térmica y penalidad
@@ -482,16 +657,20 @@ export const ReportTab: React.FC = () => {
               <div className="max-w-xl mx-auto space-y-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 border border-rose-300 text-rose-800 text-[11px] font-black uppercase tracking-wider font-mono">
                   <Lock className="w-3.5 h-3.5 text-rose-700" />
-                  <span>Emisión & Descarga Bloqueadas · Ley N° 28858</span>
+                  <span>{rt('Emisión & Descarga Bloqueadas · Ley N° 28858', 'Issuance & Download Blocked · Law N° 28858', 'Emissão e Download Bloqueados · Lei N° 28858')}</span>
                 </span>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 font-display">
-                  Número de Registro CIP No Encontrado en el Padrón Nacional
+                  {rt('Número de Registro CIP No Encontrado en el Padrón Nacional', 'CIP Registration Number Not Found in National Registry', 'Número de Registro CIP Não Encontrado no Cadastro Nacional')}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                  El número de CIP ingresado (<strong className="font-mono text-rose-700">{currentCipNumber || 'Vacío / No Especificado'}</strong>) no coincide con ningún registro certificado en el Colegio de Ingenieros del Perú.
+                  {rt('El número de CIP ingresado', 'The entered CIP number', 'O número CIP informado')} (<strong className="font-mono text-rose-700">{currentCipNumber || rt('Vacío / No Especificado', 'Empty / Unspecified', 'Vazio / Não Especificado')}</strong>) {rt('no coincide con ningún registro certificado en el Colegio de Ingenieros del Perú.', 'does not match any certified record in the College of Engineers of Peru.', 'não corresponde a nenhum registro certificado no Colégio de Engenheiros do Peru.')}
                 </p>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Por mandato expreso del Estatuto del CIP y la Ley N° 28858 del Ejercicio Profesional de la Ingeniería, es indispensable contar con colegiatura válida y verificada para observar y emitir informes periciales oficiales.
+                  {rt(
+                    'Por mandato expreso del Estatuto del CIP y la Ley N° 28858 del Ejercicio Profesional de la Ingeniería, es indispensable contar con colegiatura válida y verificada para observar y emitir informes periciales oficiales.',
+                    'By express mandate of the CIP Bylaws and Law N° 28858 on Professional Engineering Practice, valid and verified registration is mandatory to view and issue official expert reports.',
+                    'Por mandato expresso do Estatuto do CIP e da Lei N° 28858 do Exercício Profissional da Engenharia, é indispensável possuir registro válido e verificado para visualizar e emitir laudos periciais oficiais.'
+                  )}
                 </p>
               </div>
 
@@ -503,7 +682,7 @@ export const ReportTab: React.FC = () => {
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  <span>Ingresar / Modificar CIP en Datos Generales</span>
+                  <span>{rt('Ingresar / Modificar CIP en Datos Generales', 'Enter / Modify CIP in General Data', 'Inserir / Modificar CIP em Dados Gerais')}</span>
                 </button>
               </div>
             </div>
@@ -516,16 +695,20 @@ export const ReportTab: React.FC = () => {
               <div className="max-w-xl mx-auto space-y-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-black uppercase tracking-wider font-mono">
                   <Lock className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Colegiatura Inhabilitada · Emisión Restringida</span>
+                  <span>{rt('Colegiatura Inhabilitada · Emisión Restringida', 'Inactive Registration · Restricted Issuance', 'Registro Inativo · Emissão Restrita')}</span>
                 </span>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 font-display">
-                  Colegiado NO HABILITADO ante el Colegio de Ingenieros del Perú
+                  {rt('Colegiado NO HABILITADO ante el Colegio de Ingenieros del Perú', 'Engineer NOT ACTIVE with the College of Engineers of Peru', 'Engenheiro NÃO HABILITADO perante o Colégio de Engenheiros do Peru')}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">
-                  El profesional <strong>{cipRecord?.fullName}</strong> (<span className="font-mono font-bold text-amber-900">CIP N° {cipRecord?.cipNumber}</span> - {cipRecord?.regionalCouncil}) figura con estado <strong className="text-rose-700 uppercase">NO HABILITADO</strong> en el padrón oficial del CIP.
+                  {rt('El profesional', 'The professional', 'O profissional')} <strong>{cipRecord?.fullName}</strong> (<span className="font-mono font-bold text-amber-900">CIP N° {cipRecord?.cipNumber}</span> - {cipRecord?.regionalCouncil}) {rt('figura con estado', 'is listed as', 'consta com status')} <strong className="text-rose-700 uppercase">{rt('NO HABILITADO', 'INACTIVE / NOT ENABLED', 'NÃO HABILITADO')}</strong> {rt('en el padrón oficial del CIP.', 'in the official CIP registry.', 'no cadastro oficial do CIP.')}
                 </p>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  El artículo 4° de la Ley N° 28858 y las exigencias de INDECI / ITSE prohíben a profesionales no habilitados la emisión, refrendo o firma de informes técnicos periciales. El informe oficial no puede ser observado ni descargado hasta regularizar la condición de colegiatura.
+                  {rt(
+                    'El artículo 4° de la Ley N° 28858 y las exigencias de INDECI / ITSE prohíben a profesionales no habilitados la emisión, refrendo o firma de informes técnicos periciales. El informe oficial no puede ser observado ni descargado hasta regularizar la condición de colegiatura.',
+                    'Article 4 of Law N° 28858 and INDECI / ITSE safety regulations prohibit inactive professionals from issuing, endorsing, or signing technical expert reports. The official report cannot be viewed or downloaded until registration status is regularized.',
+                    'O artigo 4° da Lei N° 28858 e as exigências do INDECI / ITSE proíbem profissionais não habilitados de emitir, referendar ou assinar laudos técnicos periciais. O relatório oficial não pode ser visualizado nem baixado até regularizar a situação cadastral.'
+                  )}
                 </p>
               </div>
 
@@ -536,7 +719,7 @@ export const ReportTab: React.FC = () => {
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  <span>Cambiar a Ingeniero Colegiado Habilitado</span>
+                  <span>{rt('Cambiar a Ingeniero Colegiado Habilitado', 'Switch to Active Registered Engineer', 'Mudar para Engenheiro Registrado Habilitado')}</span>
                 </button>
               </div>
             </div>
@@ -551,10 +734,10 @@ export const ReportTab: React.FC = () => {
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-indigo-600" />
             <span className="text-xs font-black uppercase tracking-wider text-slate-800">
-              Personalizar Secciones a Incluir en el Informe:
+              {rt('Personalizar Secciones a Incluir en el Informe:', 'Customize Sections to Include in Report:', 'Personalizar Seções a Incluir no Relatório:')}
             </span>
             <span className="text-[11px] text-slate-500">
-              (Luminarias, Tableros y Puesta a Tierra son módulos independientes)
+              {rt('(Luminarias, Tableros y Puesta a Tierra son módulos independientes)', '(Lighting, Panels and Grounding are independent modules)', '(Iluminação, Quadros e Aterramento são módulos independentes)')}
             </span>
           </div>
 
@@ -563,44 +746,44 @@ export const ReportTab: React.FC = () => {
               onClick={() => handleSelectAll(true)}
               className="text-indigo-600 hover:text-indigo-800 font-semibold"
             >
-              Marcar Todos
+              {rt('Marcar Todos', 'Select All', 'Marcar Todos')}
             </button>
             <span className="text-slate-300">|</span>
             <button
               onClick={() => handleSelectAll(false)}
               className="text-slate-500 hover:text-slate-800 font-semibold"
             >
-              Desmarcar Todos
+              {rt('Desmarcar Todos', 'Deselect All', 'Desmarcar Todos')}
             </button>
           </div>
         </div>
 
         {/* Quick Presets */}
         <div className="flex flex-wrap items-center gap-1.5 pb-2">
-          <span className="text-[11px] font-bold text-slate-500 mr-1">Vistas Rápidas:</span>
+          <span className="text-[11px] font-bold text-slate-500 mr-1">{rt('Vistas Rápidas:', 'Quick Presets:', 'Visualizações Rápidas:')}</span>
           <button
             onClick={() => applyPreset('all')}
             className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
           >
-            Informe Completo
+            {rt('Informe Completo', 'Full Report', 'Relatório Completo')}
           </button>
           <button
             onClick={() => applyPreset('safety')}
             className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
           >
-            Solo Tableros & Puesta a Tierra (INDECI)
+            {rt('Solo Tableros & Puesta a Tierra (INDECI)', 'Panels & Grounding Only (INDECI)', 'Apenas Quadros e Aterramento (INDECI)')}
           </button>
           <button
             onClick={() => applyPreset('lighting')}
             className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-yellow-50 text-yellow-800 border border-yellow-200 hover:bg-yellow-100"
           >
-            Solo Módulo de Luminarias (RNE)
+            {rt('Solo Módulo de Luminarias (RNE)', 'Lighting Module Only (RNE)', 'Apenas Módulo de Iluminação (RNE)')}
           </button>
           <button
             onClick={() => applyPreset('energy')}
             className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
           >
-            Auditoría de Consumo & Ahorro
+            {rt('Auditoría de Consumo & Ahorro', 'Consumption & Savings Audit', 'Auditoria de Consumo e Economia')}
           </button>
         </div>
 
@@ -613,7 +796,7 @@ export const ReportTab: React.FC = () => {
               onChange={() => toggleSection('generalData')}
               className="rounded text-indigo-600 focus:ring-indigo-500"
             />
-            <span className="font-semibold text-slate-800">1. Datos Generales y Suministro</span>
+            <span className="font-semibold text-slate-800">{rt('1. Datos Generales y Suministro', '1. General Data & Power Supply', '1. Dados Gerais e Fornecimento')}</span>
           </label>
 
           <label className="flex items-center gap-2 p-2 rounded-xl border border-indigo-100 bg-indigo-50/30 hover:bg-indigo-50/50 cursor-pointer">
@@ -623,7 +806,7 @@ export const ReportTab: React.FC = () => {
               onChange={() => toggleSection('balanceCharts')}
               className="rounded text-indigo-600 focus:ring-indigo-500"
             />
-            <span className="font-semibold text-indigo-950">2. Gráficas: Consumo Pagado vs Censo</span>
+            <span className="font-semibold text-indigo-950">{rt('2. Gráficas: Consumo Pagado vs Censo', '2. Charts: Billed vs Load Census', '2. Gráficos: Consumo Faturado vs Censo')}</span>
           </label>
 
           <label className="flex items-center gap-2 p-2 rounded-xl border border-amber-100 bg-amber-50/30 hover:bg-amber-50/50 cursor-pointer">
@@ -633,7 +816,7 @@ export const ReportTab: React.FC = () => {
               onChange={() => toggleSection('topEquipmentRanking')}
               className="rounded text-amber-600 focus:ring-amber-500"
             />
-            <span className="font-semibold text-amber-950">3. Gráficas: Máquinas de Mayor Consumo</span>
+            <span className="font-semibold text-amber-950">{rt('3. Gráficas: Máquinas de Mayor Consumo', '3. Charts: Top Consuming Machines', '3. Gráficos: Máquinas de Maior Consumo')}</span>
           </label>
 
           <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
@@ -643,17 +826,39 @@ export const ReportTab: React.FC = () => {
               onChange={() => toggleSection('panelsAndCircuits')}
               className="rounded text-indigo-600 focus:ring-indigo-500"
             />
-            <span className="font-semibold text-slate-800">4. Módulo Tableros Eléctricos & CNE</span>
+            <span className="font-semibold text-slate-800">{rt('4. Módulo Tableros Eléctricos & CNE', '4. Electrical Switchboards & CNE Module', '4. Módulo Quadros Elétricos e CNE')}</span>
           </label>
 
-          <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={sections.lightingModule}
-              onChange={() => toggleSection('lightingModule')}
-              className="rounded text-indigo-600 focus:ring-indigo-500"
-            />
-            <span className="font-semibold text-slate-800">5. Módulo Conexiones Luminarias (RNE)</span>
+          <label
+            onClick={(e) => {
+              if (!isProPlan) {
+                e.preventDefault();
+                setIsSubscriptionModalOpen(true);
+              }
+            }}
+            className={`flex items-center justify-between gap-2 p-2 rounded-xl border transition-all ${
+              !isProPlan
+                ? 'border-slate-200 bg-slate-100/70 text-slate-400 cursor-pointer opacity-80'
+                : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer'
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="checkbox"
+                checked={isProPlan && sections.lightingModule}
+                disabled={!isProPlan}
+                onChange={() => toggleSection('lightingModule')}
+                className="rounded text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+              />
+              <span className={`font-semibold truncate ${!isProPlan ? 'text-slate-400' : 'text-slate-800'}`}>
+                {rt('5. Módulo Conexiones Luminarias (RNE)', '5. Lighting Fixtures Module (RNE)', '5. Módulo Conexões de Luminárias (RNE)')}
+              </span>
+            </div>
+            {!isProPlan && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-black shrink-0">
+                <Lock className="w-2.5 h-2.5" /> PRO
+              </span>
+            )}
           </label>
 
           <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
@@ -663,37 +868,103 @@ export const ReportTab: React.FC = () => {
               onChange={() => toggleSection('groundingModule')}
               className="rounded text-indigo-600 focus:ring-indigo-500"
             />
-            <span className="font-semibold text-slate-800">6. Módulo Puesta a Tierra (INDECI)</span>
+            <span className="font-semibold text-slate-800">{rt('6. Módulo Puesta a Tierra (INDECI)', '6. Grounding System Module (INDECI)', '6. Módulo Aterramento (INDECI)')}</span>
           </label>
 
-          <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={sections.powerFactor}
-              onChange={() => toggleSection('powerFactor')}
-              className="rounded text-indigo-600 focus:ring-indigo-500"
-            />
-            <span className="font-semibold text-slate-800">7. Factor de Potencia & Penalidades</span>
+          <label
+            onClick={(e) => {
+              if (!isProPlan) {
+                e.preventDefault();
+                setIsSubscriptionModalOpen(true);
+              }
+            }}
+            className={`flex items-center justify-between gap-2 p-2 rounded-xl border transition-all ${
+              !isProPlan
+                ? 'border-slate-200 bg-slate-100/70 text-slate-400 cursor-pointer opacity-80'
+                : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer'
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="checkbox"
+                checked={isProPlan && sections.powerFactor}
+                disabled={!isProPlan}
+                onChange={() => toggleSection('powerFactor')}
+                className="rounded text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+              />
+              <span className={`font-semibold truncate ${!isProPlan ? 'text-slate-400' : 'text-slate-800'}`}>
+                {rt('7. Factor de Potencia & Penalidades', '7. Power Factor & Penalties', '7. Fator de Potência e Multas')}
+              </span>
+            </div>
+            {!isProPlan && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-black shrink-0">
+                <Lock className="w-2.5 h-2.5" /> PRO
+              </span>
+            )}
           </label>
 
-          <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={sections.solarModule}
-              onChange={() => toggleSection('solarModule')}
-              className="rounded text-indigo-600 focus:ring-indigo-500"
-            />
-            <span className="font-semibold text-slate-800">8. Potencial Solar Fotovoltaico</span>
+          <label
+            onClick={(e) => {
+              if (!isProPlan) {
+                e.preventDefault();
+                setIsSubscriptionModalOpen(true);
+              }
+            }}
+            className={`flex items-center justify-between gap-2 p-2 rounded-xl border transition-all ${
+              !isProPlan
+                ? 'border-slate-200 bg-slate-100/70 text-slate-400 cursor-pointer opacity-80'
+                : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer'
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="checkbox"
+                checked={isProPlan && sections.solarModule}
+                disabled={!isProPlan}
+                onChange={() => toggleSection('solarModule')}
+                className="rounded text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+              />
+              <span className={`font-semibold truncate ${!isProPlan ? 'text-slate-400' : 'text-slate-800'}`}>
+                {rt('8. Potencial Solar Fotovoltaico', '8. Solar Photovoltaic Potential', '8. Potencial Solar Fotovoltaico')}
+              </span>
+            </div>
+            {!isProPlan && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-black shrink-0">
+                <Lock className="w-2.5 h-2.5" /> PRO
+              </span>
+            )}
           </label>
 
-          <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={sections.savingsPlan}
-              onChange={() => toggleSection('savingsPlan')}
-              className="rounded text-indigo-600 focus:ring-indigo-500"
-            />
-            <span className="font-semibold text-slate-800">9. Plan de Ahorro y Retorno (ROI)</span>
+          <label
+            onClick={(e) => {
+              if (!isProPlan) {
+                e.preventDefault();
+                setIsSubscriptionModalOpen(true);
+              }
+            }}
+            className={`flex items-center justify-between gap-2 p-2 rounded-xl border transition-all ${
+              !isProPlan
+                ? 'border-slate-200 bg-slate-100/70 text-slate-400 cursor-pointer opacity-80'
+                : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer'
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="checkbox"
+                checked={isProPlan && sections.savingsPlan}
+                disabled={!isProPlan}
+                onChange={() => toggleSection('savingsPlan')}
+                className="rounded text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+              />
+              <span className={`font-semibold truncate ${!isProPlan ? 'text-slate-400' : 'text-slate-800'}`}>
+                {rt('9. Plan de Ahorro y Retorno (ROI)', '9. Savings Plan & Payback (ROI)', '9. Plano de Economia e Retorno (ROI)')}
+              </span>
+            </div>
+            {!isProPlan && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-black shrink-0">
+                <Lock className="w-2.5 h-2.5" /> PRO
+              </span>
+            )}
           </label>
 
           <label className="flex items-center gap-2 p-2 rounded-xl border border-emerald-100 bg-emerald-50/30 hover:bg-emerald-50/50 cursor-pointer sm:col-span-2">
@@ -703,7 +974,7 @@ export const ReportTab: React.FC = () => {
               onChange={() => toggleSection('allRecommendations')}
               className="rounded text-emerald-600 focus:ring-emerald-500"
             />
-            <span className="font-semibold text-emerald-950">10. Recomendaciones Técnicas de Mejora de Todo</span>
+            <span className="font-semibold text-emerald-950">{rt('10. Recomendaciones Técnicas de Mejora de Todo', '10. Comprehensive Technical Improvement Recommendations', '10. Recomendações Técnicas Integrais de Melhoria')}</span>
           </label>
 
           <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
@@ -713,50 +984,235 @@ export const ReportTab: React.FC = () => {
               onChange={() => toggleSection('cipStatement')}
               className="rounded text-indigo-600 focus:ring-indigo-500"
             />
-            <span className="font-semibold text-slate-800">11. Dictamen y Peritaje CIP</span>
+            <span className="font-semibold text-slate-800">{rt('11. Dictamen y Peritaje CIP', '11. Official CIP Expert Statement', '11. Parecer e Perícia CIP')}</span>
           </label>
         </div>
       </div>
 
-      {/* Printable Official Document Container */}
+      {/* Printable Official Document Container (Separado por Hojas A4 Formales) */}
       <div 
         ref={reportContainerRef}
-        className="rounded-2xl border border-slate-300 bg-white p-6 sm:p-12 shadow-md print:border-0 print:p-0 print:shadow-none space-y-8 text-slate-900 font-serif"
+        className="space-y-8 text-slate-900 font-serif print:space-y-0"
       >
         
-        {/* Official Header */}
-        <div className="border-b-2 border-slate-900 pb-5 text-center space-y-2">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2 font-sans text-xs text-slate-500">
+        {/* ========================================================================= */}
+        {/* HOJA 1: PORTADA OFICIAL DEL INFORME CIP (LUXPROC • MAPEO ENERGÉTICO)      */}
+        {/* ========================================================================= */}
+        <div className="report-page-sheet relative rounded-2xl border-2 border-slate-900 bg-white p-6 sm:p-10 font-sans shadow-md print:break-after-page">
+          {/* Top Institutional Strip */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-slate-900 pb-4 text-[11px] font-bold uppercase tracking-wider text-slate-700">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-800">
-                {rt('COLEGIO DE INGENIEROS DEL PERÚ (CIP)', 'COLLEGE OF ENGINEERS OF PERU (CIP)', 'COLÉGIO DE ENGENHEIROS DO PERU (CIP)')}
+              <ShieldCheck className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>{rt('COLEGIO DE INGENIEROS DEL PERÚ (CIP)', 'COLLEGE OF ENGINEERS OF PERU (CIP)', 'COLÉGIO DE ENGENHEIROS DO PERU (CIP)')}</span>
+            </div>
+            <div className="flex items-center gap-4 font-mono text-xs">
+              <span className="text-amber-800">
+                {rt('EXPEDIENTE:', 'FILE NO.:', 'PROCESSO:')} {generalData.diagnosticCode || 'EDIAG-2026-001'}
+              </span>
+              <span className="text-slate-600">
+                {rt('FECHA:', 'DATE:', 'DATA:')} {generalData.date || new Date().toISOString().split('T')[0]}
               </span>
             </div>
-            <span className="font-mono font-bold text-amber-800">
-              {rt('EXPEDIENTE:', 'FILE NO.:', 'PROCESSO:')} {generalData.diagnosticCode || 'E-DIAG-2026-CIP'}
-            </span>
-            <span>
-              {rt('FECHA:', 'DATE:', 'DATA:')} {generalData.date || new Date().toLocaleDateString(language === 'en' ? 'en-US' : language === 'pt' ? 'pt-BR' : 'es-PE')}
-            </span>
           </div>
 
-          <div className="pt-2">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase text-slate-950 font-display">
-              {rt(
-                'INFORME TÉCNICO PERICIAL DE DIAGNÓSTICO ELÉCTRICO Y ENERGÉTICO',
-                'TECHNICAL EXPERT REPORT ON ELECTRICAL & ENERGY DIAGNOSIS',
-                'RELATÓRIO TÉCNICO PERICIAL DE DIAGNÓSTICO ELÉTRICO E ENERGÉTICO'
-              )}
-            </h1>
-            <p className="text-xs italic text-slate-600 font-sans mt-1">
-              {rt(
-                'Conforme al Código Nacional de Electricidad (CNE Utilización 2006), RNE EM.010, NTP 370.053 y Protocolo ITSE INDECI',
-                'In compliance with National Electrical Code (CNE / NEC), Building Code EM.010, NTP 370.053 and ITSE Protocol',
-                'Em conformidade com o Código Elétrico Nacional, Regulamento RNE EM.010, NTP 370.053 e Protocolo ITSE'
-              )}
-            </p>
+          {/* Center Brand & Platform Title */}
+          <div className="py-8 sm:py-10 text-center space-y-4">
+            {/* Logo Oficial de LUXPROC */}
+            <div className="flex flex-col items-center justify-center gap-2">
+              <div className="inline-flex items-center justify-center rounded-2xl bg-white px-6 py-3.5 border border-slate-200 shadow-xs">
+                <img
+                  src="https://i.imgur.com/WWChkA9.png"
+                  alt="LUXPROC"
+                  className="h-14 sm:h-16 w-auto object-contain"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <span className="text-[11px] font-black tracking-[0.28em] text-slate-500 uppercase">
+                LUXPROC ENGINEERING & ENERGY
+              </span>
+            </div>
+
+            {/* Nombre de la Plataforma: MAPEO ENERGÉTICO */}
+            <div className="space-y-2 pt-2">
+              <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-900 text-xs font-black uppercase tracking-widest">
+                <Zap className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />
+                <span>{rt('PLATAFORMA OFICIAL DE DIAGNÓSTICO', 'OFFICIAL DIAGNOSTIC PLATFORM', 'PLATAFORMA OFICIAL DE DIAGNÓSTICO')}</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-950 uppercase font-display">
+                {rt('MAPEO ENERGÉTICO', 'ENERGY MAPPING', 'MAPEAMENTO ENERGÉTICO')}
+              </h1>
+              <p className="text-sm sm:text-base font-extrabold text-indigo-950 uppercase tracking-wide max-w-2xl mx-auto">
+                {rt(
+                  'INFORME TÉCNICO PERICIAL DE DIAGNÓSTICO ELÉCTRICO Y ENERGÉTICO CERTIFICADO CIP',
+                  'CIP CERTIFIED TECHNICAL EXPERT REPORT ON ELECTRICAL & ENERGY DIAGNOSIS',
+                  'RELATÓRIO TÉCNICO PERICIAL DE DIAGNÓSTICO ELÉTRICO E ENERGÉTICO CERTIFICADO CIP'
+                )}
+              </p>
+              <p className="text-xs text-slate-500 italic max-w-xl mx-auto">
+                {rt(
+                  'Evaluación conforme al Código Nacional de Electricidad (CNE Utilización 2006), RNE EM.010, NTP 370.053 y Protocolo ITSE - INDECI',
+                  'Assessment in accordance with National Electrical Code (CNE 2006), RNE EM.010, NTP 370.053 and ITSE Safety Protocol',
+                  'Avaliação conforme o Código Elétrico Nacional (CNE 2006), RNE EM.010, NTP 370.053 e Protocolo ITSE - INDECI'
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Structured Cover Details: 1. Datos de la Casa o Empresa & DNI/RUC | 2. Ingeniero Responsable & CIP */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4 border-t-2 border-slate-900">
+            
+            {/* Card 1: Datos de la Casa o Empresa y DNI / RUC */}
+            <div className="rounded-xl border border-slate-300 bg-white p-4 sm:p-5 shadow-2xs space-y-3">
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                <Building2 className="h-4 w-4 text-indigo-700 shrink-0" />
+                <h2 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                  {rt('DATOS DE LA CASA O EMPRESA EVALUADA', 'EVALUATED HOME OR COMPANY DETAILS', 'DADOS DA RESIDÊNCIA OU EMPRESA AVALIADA')}
+                </h2>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    {rt('Titular / Razón Social (Casa o Empresa):', 'Owner / Company Name:', 'Titular / Razão Social:')}
+                  </span>
+                  <span className="font-black text-sm text-slate-950">
+                    {generalData.companyName || generalData.clientName || rt('Sin especificar', 'Not specified', 'Não especificado')}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="rounded-lg bg-slate-50 p-2 border border-slate-200/80">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      {rt('DNI / RUC:', 'DNI / TAX ID (RUC):', 'CPF / CNPJ (RUC):')}
+                    </span>
+                    <span className="font-mono font-black text-xs text-indigo-950">
+                      {generalData.ruc || rt('No registrado', 'Not registered', 'Não registrado')}
+                    </span>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-2 border border-slate-200/80">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      {rt('Tipo de Predio / Giro:', 'Facility Type:', 'Tipo de Imóvel:')}
+                    </span>
+                    <span className="font-bold text-xs text-slate-900 uppercase">
+                      {generalData.installationType || generalData.economicActivity || 'COMERCIO'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    {rt('Dirección / Ubicación del Predio:', 'Facility Address / Location:', 'Endereço / Localização:')}
+                  </span>
+                  <span className="font-semibold text-slate-800">
+                    {[generalData.address, generalData.district, generalData.department].filter(Boolean).join(', ') || rt('Dirección no especificada', 'Address not specified', 'Endereço não especificado')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Ingeniero que realizó el Diagnóstico + CIP */}
+            <div className="rounded-xl border border-amber-300 bg-amber-50/30 p-4 sm:p-5 shadow-2xs space-y-3">
+              <div className="flex items-center gap-2 border-b border-amber-200 pb-2">
+                <Award className="h-4 w-4 text-amber-700 shrink-0" />
+                <h2 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                  {rt('INGENIERO RESPONSABLE DEL DIAGNÓSTICO', 'ENGINEER RESPONSIBLE FOR DIAGNOSIS', 'ENGENHEIRO RESPONSÁVEL PELO DIAGNÓSTICO')}
+                </h2>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    {rt('Ingeniero Colegiado Evaluador:', 'Evaluating Collegiate Engineer:', 'Engenheiro Avaliador Registrado:')}
+                  </span>
+                  <span className="font-black text-sm text-slate-950 uppercase">
+                    {currentUser?.name || generalData.responsibleEngineer || 'Ing. Víctor Fernando Becerra Terán'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="rounded-lg bg-white p-2 border border-amber-300">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 block">
+                      {rt('Registro CIP N°:', 'CIP Registration No.:', 'Registro CIP N°:')}
+                    </span>
+                    <span className="font-mono font-black text-sm text-amber-900">
+                      CIP {currentUser?.cipNumber || generalData.cipNumber || '278034'}
+                    </span>
+                  </div>
+                  <div className="rounded-lg bg-white p-2 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      {rt('Especialidad:', 'Specialty:', 'Especialidade:')}
+                    </span>
+                    <span className="font-bold text-xs text-slate-900">
+                      {currentUser?.specialty || generalData.specialty || 'Ingeniero Electrónico'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    {rt('Consejo Departamental CIP:', 'CIP Regional Council:', 'Conselho Regional CIP:')}
+                  </span>
+                  <span className="font-semibold text-slate-800">
+                    {currentUser?.professionalCollege || generalData.professionalCollege || 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          {/* Pie de Portada Oficial */}
+          <div className="mt-8 pt-4 border-t border-slate-200 flex items-center justify-between text-[10px] font-mono text-slate-500 uppercase">
+            <span>LUXPROC • {rt('MAPEO ENERGÉTICO', 'ENERGY MAPPING', 'MAPEAMENTO ENERGÉTICO')}</span>
+            <span>{rt('PORTADA OFICIAL CIP • HOJA 1', 'OFFICIAL CIP COVER • SHEET 1', 'CAPA OFICIAL CIP • FOLHA 1')}</span>
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* HOJA 2: DATOS GENERALES Y BALANCE ENERGÉTICO (SECCIONES 1 Y 2)            */}
+        {/* ========================================================================= */}
+        {(sections.generalData || sections.balanceCharts) && (
+          <div className="report-page-sheet rounded-2xl border border-slate-300 bg-white p-6 sm:p-10 shadow-md space-y-6 print:break-after-page">
+            {/* Official Sheet Header */}
+            <div className="border-b-2 border-slate-900 pb-4 text-center space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2 font-sans text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                  <img
+                    src="https://i.imgur.com/WWChkA9.png"
+                    alt="LUXPROC"
+                    className="h-5 w-auto object-contain"
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="font-bold text-slate-800">
+                    {rt('COLEGIO DE INGENIEROS DEL PERÚ (CIP)', 'COLLEGE OF ENGINEERS OF PERU (CIP)', 'COLÉGIO DE ENGENHEIROS DO PERU (CIP)')}
+                  </span>
+                </div>
+                <span className="font-mono font-bold text-amber-800">
+                  {rt('EXPEDIENTE:', 'FILE NO.:', 'PROCESSO:')} {generalData.diagnosticCode || 'EDIAG-2026-001'}
+                </span>
+                <span>
+                  {rt('FECHA:', 'DATE:', 'DATA:')} {generalData.date || new Date().toLocaleDateString(language === 'en' ? 'en-US' : language === 'pt' ? 'pt-BR' : 'es-PE')}
+                </span>
+              </div>
+
+              <div className="pt-1">
+                <h2 className="text-lg sm:text-xl font-black tracking-tight uppercase text-slate-950 font-display">
+                  {rt(
+                    'INFORME TÉCNICO PERICIAL DE DIAGNÓSTICO ELÉCTRICO Y ENERGÉTICO',
+                    'TECHNICAL EXPERT REPORT ON ELECTRICAL & ENERGY DIAGNOSIS',
+                    'RELATÓRIO TÉCNICO PERICIAL DE DIAGNÓSTICO ELÉTRICO E ENERGÉTICO'
+                  )}
+                </h2>
+                <p className="text-[11px] italic text-slate-600 font-sans">
+                  {rt(
+                    'Conforme al Código Nacional de Electricidad (CNE Utilización 2006), RNE EM.010, NTP 370.053 y Protocolo ITSE INDECI',
+                    'In compliance with National Electrical Code (CNE / NEC), Building Code EM.010, NTP 370.053 and ITSE Protocol',
+                    'Em conformidade com o Código Elétrico Nacional, Regulamento RNE EM.010, NTP 370.053 e Protocolo ITSE'
+                  )}
+                </p>
+              </div>
+            </div>
 
         {/* SECTION 1: DATOS DEL TITULAR E INSTALACIÓN */}
         {sections.generalData && (
@@ -897,9 +1353,34 @@ export const ReportTab: React.FC = () => {
           </div>
         )}
 
-        {/* SECTION 3: TABLA OFICIAL DE FACTOR DE CARGA, EXCESO DE PAGO Y DISTRIBUCIÓN DE ENERGÍA */}
+            {/* Pie de Hoja */}
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-[10px] font-mono text-slate-500 uppercase font-sans">
+              <span>LUXPROC • {rt('MAPEO ENERGÉTICO', 'ENERGY MAPPING', 'MAPEAMENTO ENERGÉTICO')}</span>
+              <span>CIP N° {currentUser?.cipNumber || generalData.cipNumber || '278034'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* HOJA 3: SECCIÓN 3 - FACTOR DE CARGA Y GRÁFICA DE DISTRIBUCIÓN             */}
+        {/* ========================================================================= */}
         {sections.topEquipmentRanking && (
-          <div className="space-y-5 font-sans">
+          <div className="report-page-sheet rounded-2xl border border-slate-300 bg-white p-6 sm:p-10 shadow-md space-y-5 font-sans print:break-after-page">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-[11px] text-slate-500">
+              <div className="flex items-center gap-2">
+                <img
+                  src="https://i.imgur.com/WWChkA9.png"
+                  alt="LUXPROC"
+                  className="h-4 w-auto object-contain"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="font-bold text-slate-800 uppercase">{rt('MAPEO ENERGÉTICO • INFORME PERICIAL CIP', 'ENERGY MAPPING • CIP EXPERT REPORT', 'MAPEAMENTO ENERGÉTICO • RELATÓRIO CIP')}</span>
+              </div>
+              <span className="font-mono font-bold text-amber-800">
+                {rt('EXPEDIENTE:', 'FILE NO.:', 'PROCESSO:')} {generalData.diagnosticCode || 'EDIAG-2026-001'}
+              </span>
+            </div>
             <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
               <span>{rt('3. FACTOR DE CARGA, SISTEMA ELÉCTRICO Y EXCESO DE PAGO POR MAQUINARIA', '3. LOAD FACTOR, ELECTRICAL SYSTEM & ANNUAL OVERPAYMENT BY MACHINE', '3. FATOR DE CARGA, SISTEMA ELÉTRICO E EXCESSO PAGO POR MAQUINÁRIO')}</span>
               <span className="text-xs font-mono font-bold text-amber-900">
@@ -972,7 +1453,7 @@ export const ReportTab: React.FC = () => {
                   <tr>
                     <td className="border-r border-slate-300 p-2 uppercase">{rt('TOTAL GENERAL', 'GRAND TOTAL', 'TOTAL GERAL')}</td>
                     <td className="border-r border-slate-300 p-2 text-center font-mono">
-                      {Math.round(equipmentTableRows.reduce((a, b) => a + b.factorPercent, 0) / (equipmentTableRows.length || 1))}% prom.
+                      {Math.round(equipmentTableRows.reduce((a, b) => a + b.factorPercent, 0) / (equipmentTableRows.length || 1))}% {rt('prom.', 'avg.', 'méd.')}
                     </td>
                     <td className="border-r border-slate-300 p-2 text-center text-slate-600">-</td>
                     <td className="border-r border-slate-300 p-2 text-right font-mono">
@@ -997,29 +1478,33 @@ export const ReportTab: React.FC = () => {
             <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-4 shadow-2xs">
               <div className="text-center space-y-1 border-b border-slate-100 pb-3">
                 <h4 className="text-sm font-black tracking-wide text-slate-900 uppercase font-display">
-                  DISTRIBUCIÓN CONSUMO DE ENERGIA ELECTRICA
+                  {rt('DISTRIBUCIÓN CONSUMO DE ENERGÍA ELÉCTRICA', 'ELECTRICAL ENERGY CONSUMPTION DISTRIBUTION', 'DISTRIBUIÇÃO DO CONSUMO DE ENERGIA ELÉTRICA')}
                 </h4>
                 <p className="text-[11px] text-slate-500">
-                  Participación porcentual y jerarquía de demanda de potencia activa por equipo
+                  {rt(
+                    'Participación porcentual y jerarquía de demanda de potencia activa por equipo',
+                    'Percentage share and active power demand hierarchy by equipment',
+                    'Participação percentual e hierarquia de demanda de potência ativa por equipamento'
+                  )}
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                 {/* Recharts Pie Chart */}
-                <div className="md:col-span-7 h-64 sm:h-72 w-full flex items-center justify-center">
+                <div className="md:col-span-6 h-64 sm:h-72 w-full flex items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={pieDistributionData}
                         cx="50%"
                         cy="50%"
-                        outerRadius={95}
-                        innerRadius={36}
-                        paddingAngle={2}
+                        outerRadius={96}
+                        innerRadius={44}
+                        paddingAngle={3}
                         dataKey="value"
                         nameKey="name"
-                        label={({ name, percent }) => `${name.slice(0, 14)}: ${(percent * 100).toFixed(0)}%`}
-                        labelLine={true}
+                        label={({ percent }) => percent >= 0.06 ? `${(percent * 100).toFixed(0)}%` : ''}
+                        labelLine={false}
                       >
                         {pieDistributionData.map((entry, index) => (
                           <Cell key={`pie-cell-${index}`} fill={entry.color} stroke="#ffffff" strokeWidth={2} />
@@ -1027,7 +1512,7 @@ export const ReportTab: React.FC = () => {
                       </Pie>
                       <RechartsTooltip
                         formatter={(val: any, name: any, item: any) => [
-                          `${Number(val).toLocaleString()} kWh/mes (${item.payload.percent}%) • S/. ${item.payload.monthlyCost.toFixed(2)}`,
+                          `${Number(val).toLocaleString()} ${rt('kWh/mes', 'kWh/mo', 'kWh/mês')} (${item.payload.percent}%) • S/. ${item.payload.monthlyCost.toFixed(2)}`,
                           name
                         ]}
                       />
@@ -1036,9 +1521,9 @@ export const ReportTab: React.FC = () => {
                 </div>
 
                 {/* Slices Legend & Percentage Cards */}
-                <div className="md:col-span-5 space-y-2">
+                <div className="md:col-span-6 space-y-2">
                   <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Desglose Porcentual por Equipo:
+                    {rt('Desglose Porcentual por Equipo:', 'Percentage Breakdown by Equipment:', 'Detalhamento Percentual por Equipamento:')}
                   </div>
                   <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
                     {pieDistributionData.map(item => (
@@ -1069,7 +1554,7 @@ export const ReportTab: React.FC = () => {
             {/* Ranking Bar Chart */}
             <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3">
               <div className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                Ranking Cuantitativo de Demanda Mensual (kWh/mes):
+                {rt('Ranking Cuantitativo de Demanda Mensual (kWh/mes):', 'Quantitative Monthly Demand Ranking (kWh/month):', 'Ranking Quantitativo de Demanda Mensal (kWh/mês):')}
               </div>
               {sortedEquipmentByKwh.slice(0, 6).map((eq, index) => {
                 const percent = Math.min(100, Math.max(1, (eq.monthlyKwh / totalEquipKwh) * 100));
@@ -1090,7 +1575,7 @@ export const ReportTab: React.FC = () => {
                         </span>
                         {isTop1 && (
                           <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-200 uppercase">
-                            Mayor Consumo
+                            {rt('Mayor Consumo', 'Top Consumer', 'Maior Consumo')}
                           </span>
                         )}
                       </div>
@@ -1119,7 +1604,8 @@ export const ReportTab: React.FC = () => {
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-950 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <strong>Diagnóstico de Carga Dominante:</strong> Las 3 máquinas principales representan el{' '}
+                <strong>{rt('Diagnóstico de Carga Dominante:', 'Dominant Load Diagnosis:', 'Diagnóstico de Carga Dominante:')}</strong>{' '}
+                {rt('Las 3 máquinas principales representan el', 'The top 3 machines account for', 'As 3 máquinas principais representam')}{' '}
                 <span className="font-bold underline">
                   {(
                     (sortedEquipmentByKwh.slice(0, 3).reduce((a, b) => a + (b.monthlyKwh || 0), 0) /
@@ -1127,45 +1613,96 @@ export const ReportTab: React.FC = () => {
                     100
                   ).toFixed(1)}%
                 </span>{' '}
-                del consumo eléctrico mensual total de las instalaciones.
+                {rt('del consumo eléctrico mensual total de las instalaciones.', 'of the facility total monthly electricity consumption.', 'do consumo elétrico mensal total das instalações.')}
                 {totalAnnualExcessPayment > 0 && (
                   <span className="block mt-1 text-red-700 font-bold">
-                    ⚠️ Se detectó sobrecarga operativa (factor &gt; 100%) generando un sobrecosto anual acumulado de S/ {totalAnnualExcessPayment.toFixed(2)}. Se recomienda redistribución de cargas y mantenimiento correctivo.
+                    ⚠️ {rt(
+                      `Se detectó sobrecarga operativa (factor > 100%) generando un sobrecosto anual acumulado de S/ ${totalAnnualExcessPayment.toFixed(2)}. Se recomienda redistribución de cargas y mantenimiento correctivo.`,
+                      `Operating overload detected (factor > 100%) generating an accumulated annual surcharge of S/ ${totalAnnualExcessPayment.toFixed(2)}. Load balancing and corrective maintenance are recommended.`,
+                      `Foi detectada sobrecarga operacional (fator > 100%) gerando um sobrecusto anual acumulado de S/ ${totalAnnualExcessPayment.toFixed(2)}. Recomenda-se redistribuição de cargas e manutenção corretiva.`
+                    )}
                   </span>
                 )}
               </div>
             </div>
+
+            {/* Pie de Hoja */}
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-[10px] font-mono text-slate-500 uppercase">
+              <span>LUXPROC • {rt('MAPEO ENERGÉTICO', 'ENERGY MAPPING', 'MAPEAMENTO ENERGÉTICO')}</span>
+              <span>CIP N° {currentUser?.cipNumber || generalData.cipNumber || '278034'}</span>
+            </div>
           </div>
         )}
+
+        {/* ========================================================================= */}
+        {/* HOJA 4: TABLEROS ELÉCTRICOS & PUESTA A TIERRA (SECCIONES 4 Y 6)           */}
+        {/* ========================================================================= */}
+        {(sections.panelsAndCircuits || sections.groundingModule) && (
+          <div className="report-page-sheet rounded-2xl border border-slate-300 bg-white p-6 sm:p-10 shadow-md space-y-6 font-sans print:break-after-page">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-[11px] text-slate-500">
+              <div className="flex items-center gap-2">
+                <img
+                  src="https://i.imgur.com/WWChkA9.png"
+                  alt="LUXPROC"
+                  className="h-4 w-auto object-contain"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="font-bold text-slate-800 uppercase">{rt('MAPEO ENERGÉTICO • INFORME PERICIAL CIP', 'ENERGY MAPPING • CIP EXPERT REPORT', 'MAPEAMENTO ENERGÉTICO • RELATÓRIO CIP')}</span>
+              </div>
+              <span className="font-mono font-bold text-amber-800">
+                {rt('EXPEDIENTE:', 'FILE NO.:', 'PROCESSO:')} {generalData.diagnosticCode || 'EDIAG-2026-001'}
+              </span>
+            </div>
 
         {/* SECTION 4: MÓDULO INDEPENDIENTE DE TABLEROS ELÉCTRICOS Y CNE */}
         {sections.panelsAndCircuits && (
           <div className="space-y-3 font-sans">
             <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>4. MÓDULO INDEPENDIENTE: EVALUACIÓN DE TABLEROS ELÉCTRICOS & CNE</span>
-              <span className="text-xs font-mono font-bold">SEGURIDAD: {safetyEvaluation.score}/100</span>
+              <span>{rt('4. MÓDULO INDEPENDIENTE: EVALUACIÓN DE TABLEROS ELÉCTRICOS & CNE', '4. INDEPENDENT MODULE: ELECTRICAL SWITCHBOARDS & CODE EVALUATION', '4. MÓDULO INDEPENDENTE: AVALIAÇÃO DE QUADROS ELÉTRICOS E CNE')}</span>
+              <span className="text-xs font-mono font-bold">{rt('SEGURIDAD:', 'SAFETY SCORE:', 'SEGURANÇA:')} {safetyEvaluation.score}/100</span>
             </div>
 
             <p className="text-xs text-slate-700 leading-relaxed">
-              Verificación física y técnica de los alimentadores, tableros generales (TG), tableros de distribución (TD) y coordinación de protecciones según CNE Utilización 2006:
+              {rt(
+                'Verificación física y técnica de los alimentadores, tableros generales (TG), tableros de distribución (TD) y coordinación de protecciones según CNE Utilización 2006:',
+                'Physical and technical verification of feeders, main switchboards (TG), distribution panels (TD), and protection coordination per CNE / NEC standards:',
+                'Verificação física e técnica dos alimentadores, quadros gerais (QGBT), quadros de distribuição (QD) e coordenação de proteções conforme norma CNE:'
+              )}
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="border border-slate-200 p-3 rounded-lg bg-slate-50 space-y-1">
-                <strong className="text-slate-900 block font-bold">Capacidad Térmica de Conductores (Ib ≤ In ≤ Iz):</strong>
+                <strong className="text-slate-900 block font-bold">{rt('Capacidad Térmica de Conductores (Ib ≤ In ≤ Iz):', 'Conductor Thermal Ampacity (Ib ≤ In ≤ Iz):', 'Capacidade Térmica de Condutores (Ib ≤ In ≤ Iz):')}</strong>
                 <p className="text-slate-600 text-[11px]">
                   {diagnostic.circuits.filter(c => c.wireStatus === 'NO_ADECUADO').length === 0
-                    ? '✓ Cumple norma: Todos los calibres de conductores instalados soportan la corriente nominal de sus interruptores termomagnéticos.'
-                    : `⚠️ Riesgo detectado: Existen ${diagnostic.circuits.filter(c => c.wireStatus === 'NO_ADECUADO').length} circuitos donde el calibre de cable es inferior a la capacidad del disyuntor.`}
+                    ? rt(
+                        '✓ Cumple norma: Todos los calibres de conductores instalados soportan la corriente nominal de sus interruptores termomagnéticos.',
+                        '✓ Code compliant: All installed conductor gauges support the rated current of their thermomagnetic circuit breakers.',
+                        '✓ Cumpre a norma: Todas as bitolas de condutores instalados suportam a corrente nominal de seus disjuntores termomagnéticos.'
+                      )
+                    : rt(
+                        `⚠️ Riesgo detectado: Existen ${diagnostic.circuits.filter(c => c.wireStatus === 'NO_ADECUADO').length} circuitos donde el calibre de cable es inferior a la capacidad del disyuntor.`,
+                        `⚠️ Hazard detected: ${diagnostic.circuits.filter(c => c.wireStatus === 'NO_ADECUADO').length} circuits have wire gauges undersized for their breaker rating.`,
+                        `⚠️ Risco detectado: Existem ${diagnostic.circuits.filter(c => c.wireStatus === 'NO_ADECUADO').length} circuitos onde a bitola do cabo é inferior à capacidade do disjuntor.`
+                      )}
                 </p>
               </div>
 
               <div className="border border-slate-200 p-3 rounded-lg bg-slate-50 space-y-1">
-                <strong className="text-slate-900 block font-bold">Protección Diferencial de Personas (ID 30mA):</strong>
+                <strong className="text-slate-900 block font-bold">{rt('Protección Diferencial de Personas (ID 30mA):', 'Personnel RCD Differential Protection (30mA):', 'Proteção Diferencial de Pessoas (DR 30mA):')}</strong>
                 <p className="text-slate-600 text-[11px]">
                   {diagnostic.circuits.filter(c => !c.rcdExistingA).length === 0
-                    ? '✓ Cumple CNE 020.024: Todos los circuitos derivados cuentan con interruptor diferencial de 30mA.'
-                    : `🚨 Faltan interruptores diferenciales de 30mA en ${diagnostic.circuits.filter(c => !c.rcdExistingA).length} circuitos, representando riesgo de choque eléctrico.`}
+                    ? rt(
+                        '✓ Cumple CNE 020.024: Todos los circuitos derivados cuentan con interruptor diferencial de 30mA.',
+                        '✓ Complies with CNE 020.024: All branch circuits are protected by 30mA residual current devices (RCD).',
+                        '✓ Cumpre CNE 020.024: Todos os circuitos derivados possuem interruptor diferencial DR de 30mA.'
+                      )
+                    : rt(
+                        `🚨 Faltan interruptores diferenciales de 30mA en ${diagnostic.circuits.filter(c => !c.rcdExistingA).length} circuitos, representando riesgo de choque eléctrico.`,
+                        `🚨 Missing 30mA RCD protection in ${diagnostic.circuits.filter(c => !c.rcdExistingA).length} circuits, posing electrocution hazard.`,
+                        `🚨 Faltam interruptores diferenciais DR de 30mA em ${diagnostic.circuits.filter(c => !c.rcdExistingA).length} circuitos, representando risco de choque elétrico.`
+                      )}
                 </p>
               </div>
             </div>
@@ -1175,12 +1712,12 @@ export const ReportTab: React.FC = () => {
               <table className="w-full text-left border-collapse border border-slate-200">
                 <thead className="bg-slate-100 text-slate-700 font-bold">
                   <tr>
-                    <th className="border border-slate-200 p-1.5">Circuito</th>
-                    <th className="border border-slate-200 p-1.5">Tablero</th>
-                    <th className="border border-slate-200 p-1.5">Conductor</th>
-                    <th className="border border-slate-200 p-1.5">Termomagnético</th>
-                    <th className="border border-slate-200 p-1.5 text-center">Diferencial</th>
-                    <th className="border border-slate-200 p-1.5 text-center">Estado</th>
+                    <th className="border border-slate-200 p-1.5">{rt('Circuito', 'Circuit', 'Circuito')}</th>
+                    <th className="border border-slate-200 p-1.5">{rt('Tablero', 'Panel', 'Quadro')}</th>
+                    <th className="border border-slate-200 p-1.5">{rt('Conductor', 'Conductor', 'Condutor')}</th>
+                    <th className="border border-slate-200 p-1.5">{rt('Termomagnético', 'Breaker (MCB)', 'Disjuntor (DTM)')}</th>
+                    <th className="border border-slate-200 p-1.5 text-center">{rt('Diferencial', 'RCD', 'Diferencial DR')}</th>
+                    <th className="border border-slate-200 p-1.5 text-center">{rt('Estado', 'Status', 'Status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1188,16 +1725,16 @@ export const ReportTab: React.FC = () => {
                     <tr key={c.id}>
                       <td className="border border-slate-200 p-1.5 font-mono font-semibold">{c.circuitCode} - {c.description}</td>
                       <td className="border border-slate-200 p-1.5">{c.panelId}</td>
-                      <td className="border border-slate-200 p-1.5 font-mono">{c.wireGaugeMm2} mm² {c.wireType}</td>
-                      <td className="border border-slate-200 p-1.5 font-mono">{c.breakerAmps} A</td>
+                      <td className="border border-slate-200 p-1.5 font-mono">{c.wireSectionMm2 || (c as any).wireGaugeMm2} mm² {c.wireInsulation || (c as any).wireType}</td>
+                      <td className="border border-slate-200 p-1.5 font-mono">{c.breakerExistingA || (c as any).breakerAmps} A</td>
                       <td className="border border-slate-200 p-1.5 text-center">
-                        {c.rcdExistingA ? `${c.rcdExistingA}A / 30mA` : <span className="text-rose-700 font-bold">Sin ID</span>}
+                        {c.rcdExistingA ? `${c.rcdExistingA}A / 30mA` : <span className="text-rose-700 font-bold">{rt('Sin ID', 'No RCD', 'Sem DR')}</span>}
                       </td>
                       <td className="border border-slate-200 p-1.5 text-center font-bold">
                         {c.wireStatus === 'ADECUADO' ? (
-                          <span className="text-emerald-700">CONFORME</span>
+                          <span className="text-emerald-700">{rt('CONFORME', 'COMPLIANT', 'CONFORME')}</span>
                         ) : (
-                          <span className="text-rose-700">NO CONFORME</span>
+                          <span className="text-rose-700">{rt('NO CONFORME', 'NON-COMPLIANT', 'NÃO CONFORME')}</span>
                         )}
                       </td>
                     </tr>
@@ -1208,44 +1745,130 @@ export const ReportTab: React.FC = () => {
           </div>
         )}
 
-        {/* SECTION 5: MÓDULO INDEPENDIENTE DE LUMINARIAS Y PROPUESTA DE MEJORA POR ÁREA (RNE EM.010) */}
-        {sections.lightingModule && (
-          <div className="space-y-4 font-sans">
+        {/* SECTION 6 (En la misma hoja de Seguridad Eléctrica CNE/INDECI junto con Tableros) */}
+        {sections.groundingModule && (
+          <div className="space-y-3 font-sans">
             <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>5. MÓDULO DE ILUMINACIÓN: DIAGNÓSTICO FOTOMÉTRICO Y PROPUESTA DE MEJORA POR ESPACIO O ÁREA</span>
-              <span className="text-xs font-mono font-bold text-amber-900">NORMA TÉCNICA RNE EM.010</span>
+              <span>{rt('6. MÓDULO INDEPENDIENTE: PROTOCOLO DE MEDICIÓN DE PUESTA A TIERRA (ITSE / INDECI)', '6. INDEPENDENT MODULE: GROUNDING RESISTANCE MEASUREMENT PROTOCOL (ITSE)', '6. MÓDULO INDEPENDENTE: PROTOCOLO DE MEDIÇÃO DE ATERRAMENTO (ITSE)')}</span>
+              <span className="text-xs font-mono font-bold text-emerald-800">{rt('LÍMITE CNE: ≤ 25.0 Ω', 'CODE LIMIT: ≤ 25.0 Ω', 'LIMITE CNE: ≤ 25.0 Ω')}</span>
+            </div>
+
+            <p className="text-xs text-slate-700 leading-relaxed">
+              {rt(
+                'Resultados del protocolo de medición con telurómetro calibrado mediante el método de caída de potencial (Wenner / 3 puntos) conforme al Código Nacional de Electricidad y directivas de Seguridad en Edificaciones ITSE:',
+                'Results of the measurement protocol using a calibrated earth tester via the fall-of-potential method (Wenner / 3-point) in accordance with the National Electrical Code and ITSE Building Safety directives:',
+                'Resultados do protocolo de medição com terrômetro calibrado pelo método de queda de potencial (Wenner / 3 pontos) conforme o Código Elétrico Nacional e diretrizes de Segurança ITSE:'
+              )}
+            </p>
+
+            <div className="overflow-x-auto text-xs">
+              <table className="w-full text-left border-collapse border border-slate-200">
+                <thead className="bg-slate-100 text-slate-700 font-bold">
+                  <tr>
+                    <th className="border border-slate-200 p-1.5">{rt('Código Pozo', 'Pit Code', 'Código Poço')}</th>
+                    <th className="border border-slate-200 p-1.5">{rt('Ubicación Física', 'Physical Location', 'Localização Física')}</th>
+                    <th className="border border-slate-200 p-1.5">{rt('Electrodo', 'Electrode', 'Eletrodo')}</th>
+                    <th className="border border-slate-200 p-1.5">{rt('Tratamiento Químico', 'Chemical Treatment', 'Tratamento Químico')}</th>
+                    <th className="border border-slate-200 p-1.5 text-center">{rt('R Medida (Ω)', 'Measured R (Ω)', 'R Medida (Ω)')}</th>
+                    <th className="border border-slate-200 p-1.5 text-center">{rt('Dictamen CNE', 'Code Verdict', 'Parecer CNE')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(diagnostic.grounding || []).map(gw => (
+                    <tr key={gw.id}>
+                      <td className="border border-slate-200 p-1.5 font-bold font-mono text-slate-950">{gw.code}</td>
+                      <td className="border border-slate-200 p-1.5">{gw.location}</td>
+                      <td className="border border-slate-200 p-1.5 font-mono">Cu 5/8" x {gw.electrodeLengthM}m</td>
+                      <td className="border border-slate-200 p-1.5">{gw.treatmentChemical}</td>
+                      <td className="border border-slate-200 p-1.5 font-mono font-bold text-center text-sm">
+                        {gw.measuredResistanceOhm} Ω
+                      </td>
+                      <td className="border border-slate-200 p-1.5 text-center font-bold">
+                        {gw.measuredResistanceOhm <= 25.0 ? (
+                          <span className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            {rt('CUMPLE NORMA (≤25Ω)', 'COMPLIANT (≤25Ω)', 'CUMPRE A NORMA (≤25Ω)')}
+                          </span>
+                        ) : (
+                          <span className="text-rose-800 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                            {rt('NO CUMPLE (>25Ω)', 'NON-COMPLIANT (>25Ω)', 'NÃO CUMPRE (>25Ω)')}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+            {/* Pie de Hoja */}
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-[10px] font-mono text-slate-500 uppercase">
+              <span>LUXPROC • {rt('MAPEO ENERGÉTICO', 'ENERGY MAPPING', 'MAPEAMENTO ENERGÉTICO')}</span>
+              <span>CIP N° {currentUser?.cipNumber || generalData.cipNumber || '278034'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* HOJA 5: MÓDULO INDEPENDIENTE DE LUMINARIAS (SECCIÓN 5)                    */}
+        {/* ========================================================================= */}
+        {sections.lightingModule && (
+          <div className="report-page-sheet rounded-2xl border border-slate-300 bg-white p-6 sm:p-10 shadow-md space-y-4 font-sans print:break-after-page">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-[11px] text-slate-500">
+              <div className="flex items-center gap-2">
+                <img
+                  src="https://i.imgur.com/WWChkA9.png"
+                  alt="LUXPROC"
+                  className="h-4 w-auto object-contain"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="font-bold text-slate-800 uppercase">{rt('MAPEO ENERGÉTICO • INFORME PERICIAL CIP', 'ENERGY MAPPING • CIP EXPERT REPORT', 'MAPEAMENTO ENERGÉTICO • RELATÓRIO CIP')}</span>
+              </div>
+              <span className="font-mono font-bold text-amber-800">
+                {rt('EXPEDIENTE:', 'FILE NO.:', 'PROCESSO:')} {generalData.diagnosticCode || 'EDIAG-2026-001'}
+              </span>
+            </div>
+            <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
+              <span>{rt('5. MÓDULO DE ILUMINACIÓN: DIAGNÓSTICO FOTOMÉTRICO Y PROPUESTA DE MEJORA POR ESPACIO O ÁREA', '5. LIGHTING MODULE: PHOTOMETRIC DIAGNOSIS & UPGRADE PROPOSAL BY WORKSPACE', '5. MÓDULO DE ILUMINAÇÃO: DIAGNÓSTICO FOTOMÉTRICO E PROPOSTA DE MELHORIA POR ÁREA')}</span>
+              <span className="text-xs font-mono font-bold text-amber-900">{rt('NORMA TÉCNICA RNE EM.010', 'STANDARD RNE EM.010 / IES', 'NORMA TÉCNICA RNE EM.010')}</span>
             </div>
 
             {/* 5.1 Estado Actual Fotométrico */}
             <div className="space-y-2">
               <div className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
                 <SunMedium className="h-3.5 w-3.5 text-amber-600" />
-                <span>5.1 Diagnóstico Fotométrico de Ambientes y Niveles de Iluminancia Reglamentaria (Lux):</span>
+                <span>{rt('5.1 Diagnóstico Fotométrico de Ambientes y Niveles de Iluminancia Reglamentaria (Lux):', '5.1 Workspace Photometric Diagnosis & Regulatory Illuminance Levels (Lux):', '5.1 Diagnóstico Fotométrico de Ambientes e Níveis de Iluminância Regulamentar (Lux):')}</span>
               </div>
               <p className="text-xs text-slate-700 leading-relaxed">
-                Verificación in-situ de los niveles de iluminancia sobre el plano de trabajo conforme a las exigencias mínimas del Reglamento Nacional de Edificaciones (RNE EM.010 Alumbrado de Interiores):
+                {rt(
+                  'Verificación in-situ de los niveles de iluminancia sobre el plano de trabajo conforme a las exigencias mínimas del Reglamento Nacional de Edificaciones (RNE EM.010 Alumbrado de Interiores):',
+                  'On-site verification of illuminance levels on the work plane in accordance with minimum building code requirements (RNE EM.010 Indoor Lighting):',
+                  'Verificação in-loco dos níveis de iluminância no plano de trabalho conforme as exigências mínimas do Regulamento Nacional de Edificações (RNE EM.010 Iluminação Interna):'
+                )}
               </p>
 
               <div className="overflow-x-auto text-xs border border-slate-200 rounded-lg shadow-2xs">
                 <table className="w-full text-left border-collapse bg-white">
                   <thead className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[11px]">
                     <tr>
-                      <th className="border-r border-slate-200 p-2">Espacio / Área de Trabajo</th>
-                      <th className="border-r border-slate-200 p-2">Tecnología Actual</th>
-                      <th className="border-r border-slate-200 p-2 text-center">Cant.</th>
-                      <th className="border-r border-slate-200 p-2 text-right">Potencia (W)</th>
-                      <th className="border-r border-slate-200 p-2 text-center">Lux Medido</th>
-                      <th className="border-r border-slate-200 p-2 text-center">Mín. RNE EM.010</th>
-                      <th className="p-2 text-center">Dictamen RNE</th>
+                      <th className="border-r border-slate-200 p-2">{rt('Espacio / Área de Trabajo', 'Workspace / Area', 'Espaço / Área de Trabalho')}</th>
+                      <th className="border-r border-slate-200 p-2">{rt('Tecnología Actual', 'Current Technology', 'Tecnologia Atual')}</th>
+                      <th className="border-r border-slate-200 p-2 text-center">{rt('Cant.', 'Qty.', 'Qtd.')}</th>
+                      <th className="border-r border-slate-200 p-2 text-right">{rt('Potencia (W)', 'Power (W)', 'Potência (W)')}</th>
+                      <th className="border-r border-slate-200 p-2 text-center">{rt('Lux Medido', 'Measured Lux', 'Lux Medido')}</th>
+                      <th className="border-r border-slate-200 p-2 text-center">{rt('Mín. RNE EM.010', 'Min. RNE EM.010', 'Mín. RNE EM.010')}</th>
+                      <th className="p-2 text-center">{rt('Dictamen RNE', 'RNE Verdict', 'Parecer RNE')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {(diagnostic.lighting && diagnostic.lighting.length > 0 ? diagnostic.lighting : [
-                      { id: 'def-1', roomName: 'Nave de Armado y Costura', technology: 'Fluorescente T8 2x36W', fixtureCount: 16, powerPerFixtureW: 76, measuredLux: 410, requiredLuxRne: 600 },
-                      { id: 'def-2', roomName: 'Área de Corte e Inspección', technology: 'Halogenuro Metálico 250W', fixtureCount: 6, powerPerFixtureW: 275, measuredLux: 380, requiredLuxRne: 500 },
-                      { id: 'def-3', roomName: 'Área de Ensamble y Prensas', technology: 'Fluorescente T8 2x36W', fixtureCount: 10, powerPerFixtureW: 76, measuredLux: 320, requiredLuxRne: 400 },
-                      { id: 'def-4', roomName: 'Almacén de Materia Prima', technology: 'Vapor de Sodio 150W', fixtureCount: 4, powerPerFixtureW: 175, measuredLux: 140, requiredLuxRne: 200 },
-                      { id: 'def-5', roomName: 'Oficinas de Control y Calidad', technology: 'Paneles Fluorescentes 4x18W', fixtureCount: 8, powerPerFixtureW: 82, measuredLux: 460, requiredLuxRne: 500 }
+                      { id: 'def-1', roomName: rt('Nave de Armado y Costura', 'Assembly & Sewing Bay', 'Galpão de Montagem e Costura'), technology: 'Fluorescente T8 2x36W', fixtureCount: 16, powerPerFixtureW: 76, measuredLux: 410, requiredLuxRne: 600 },
+                      { id: 'def-2', roomName: rt('Área de Corte e Inspección', 'Cutting & Inspection Area', 'Área de Corte e Inspeção'), technology: 'Halogenuro Metálico 250W', fixtureCount: 6, powerPerFixtureW: 275, measuredLux: 380, requiredLuxRne: 500 },
+                      { id: 'def-3', roomName: rt('Área de Ensamble y Prensas', 'Assembly & Press Area', 'Área de Montagem e Prensas'), technology: 'Fluorescente T8 2x36W', fixtureCount: 10, powerPerFixtureW: 76, measuredLux: 320, requiredLuxRne: 400 },
+                      { id: 'def-4', roomName: rt('Almacén de Materia Prima', 'Raw Material Warehouse', 'Armazém de Matéria-Prima'), technology: 'Vapor de Sodio 150W', fixtureCount: 4, powerPerFixtureW: 175, measuredLux: 140, requiredLuxRne: 200 },
+                      { id: 'def-5', roomName: rt('Oficinas de Control y Calidad', 'Quality Control Offices', 'Escritórios de Controle e Qualidade'), technology: 'Paneles Fluorescentes 4x18W', fixtureCount: 8, powerPerFixtureW: 82, measuredLux: 460, requiredLuxRne: 500 }
                     ]).map((room: any) => {
                       const luxOk = (room.measuredLux || 0) >= (room.requiredLuxRne || 300);
                       return (
@@ -1259,11 +1882,11 @@ export const ReportTab: React.FC = () => {
                           <td className="p-2 text-center font-bold">
                             {luxOk ? (
                               <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                CUMPLE
+                                {rt('CUMPLE', 'COMPLIANT', 'CUMPRE')}
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 border border-amber-300">
-                                DÉFICIT
+                                {rt('DÉFICIT', 'DEFICIT', 'DÉFICIT')}
                               </span>
                             )}
                           </td>
@@ -1280,15 +1903,23 @@ export const ReportTab: React.FC = () => {
               <div className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-indigo-900">
                   <Lightbulb className="h-3.5 w-3.5 text-indigo-600" />
-                  5.2 Propuesta Técnica y Económica de Reconversión Tecnológica LED por Espacio o Área:
+                  {rt(
+                    '5.2 Propuesta Técnica y Económica de Reconversión Tecnológica LED por Espacio o Área:',
+                    '5.2 Technical & Economic LED Retrofit Proposal by Workspace or Area:',
+                    '5.2 Proposta Técnica e Econômica de Retrofit LED por Espaço ou Área:'
+                  )}
                 </span>
                 <span className="text-[11px] font-mono font-bold text-emerald-800">
-                  Ahorro Total: S/ {totalLightingAnnualSavings.toFixed(0)}/año
+                  {rt('Ahorro Total:', 'Total Savings:', 'Economia Total:')} S/ {totalLightingAnnualSavings.toFixed(0)}/{rt('año', 'yr', 'ano')}
                 </span>
               </div>
 
               <p className="text-xs text-slate-700 leading-relaxed">
-                Plan de recambio tecnológico a luminarias de tecnología LED de alta eficiencia lumínica (&ge; 130 lm/W), con distribución óptica optimizada para alcanzar el 100% de cumplimiento del RNE EM.010 y reducir sustancialmente la potencia demandada:
+                {rt(
+                  'Plan de recambio tecnológico a luminarias de tecnología LED de alta eficiencia lumínica (≥ 130 lm/W), con distribución óptica optimizada para alcanzar el 100% de cumplimiento del RNE EM.010 y reducir sustancialmente la potencia demandada:',
+                  'Technological retrofit plan to high-efficiency LED luminaires (≥ 130 lm/W), with optimized optical distribution to achieve 100% compliance with RNE EM.010 and substantially reduce demanded power:',
+                  'Plano de substituição tecnológica para luminárias LED de alta eficiência (≥ 130 lm/W), com distribuição óptica otimizada para atingir 100% de conformidade com a norma RNE EM.010 e reduzir a potência demandada:'
+                )}
               </p>
 
               {/* Technical proposal table per area */}
@@ -1296,16 +1927,16 @@ export const ReportTab: React.FC = () => {
                 <table className="w-full text-xs text-left border-collapse bg-white">
                   <thead className="bg-slate-100 text-slate-900 font-bold border-b-2 border-slate-300 text-[10.5px] uppercase tracking-wider">
                     <tr>
-                      <th className="border-r border-slate-200 p-2 text-left">Espacio / Área</th>
-                      <th className="border-r border-slate-200 p-2 text-left">Tecnología Actual</th>
-                      <th className="border-r border-slate-200 p-2 text-left">Luminaria LED Propuesta</th>
-                      <th className="border-r border-slate-200 p-2 text-center">Potencia Act. vs Prop.</th>
-                      <th className="border-r border-slate-200 p-2 text-center">% Ahorro</th>
-                      <th className="border-r border-slate-200 p-2 text-right">Ahorro Mensual (kWh)</th>
-                      <th className="border-r border-slate-200 p-2 text-right">Ahorro Anual (S/.)</th>
-                      <th className="border-r border-slate-200 p-2 text-right">Inversión (S/.)</th>
-                      <th className="border-r border-slate-200 p-2 text-center">Retorno</th>
-                      <th className="p-2 text-center">Lux / RNE</th>
+                      <th className="border-r border-slate-200 p-2 text-left">{rt('Espacio / Área', 'Workspace / Area', 'Espaço / Área')}</th>
+                      <th className="border-r border-slate-200 p-2 text-left">{rt('Tecnología Actual', 'Current Tech', 'Tecnologia Atual')}</th>
+                      <th className="border-r border-slate-200 p-2 text-left">{rt('Luminaria LED Propuesta', 'Proposed LED Fixture', 'Luminária LED Proposta')}</th>
+                      <th className="border-r border-slate-200 p-2 text-center">{rt('Potencia Act. vs Prop.', 'Curr. vs Prop. Power', 'Potência At. vs Prop.')}</th>
+                      <th className="border-r border-slate-200 p-2 text-center">{rt('% Ahorro', '% Savings', '% Economia')}</th>
+                      <th className="border-r border-slate-200 p-2 text-right">{rt('Ahorro Mensual (kWh)', 'Monthly Savings (kWh)', 'Economia Mensal (kWh)')}</th>
+                      <th className="border-r border-slate-200 p-2 text-right">{rt('Ahorro Anual (S/.)', 'Annual Savings (S/.)', 'Economia Anual (S/.)')}</th>
+                      <th className="border-r border-slate-200 p-2 text-right">{rt('Inversión (S/.)', 'Investment (S/.)', 'Investimento (S/.)')}</th>
+                      <th className="border-r border-slate-200 p-2 text-center">{rt('Retorno', 'Payback', 'Retorno')}</th>
+                      <th className="p-2 text-center">{rt('Lux / RNE', 'Lux / Code', 'Lux / RNE')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -1352,7 +1983,7 @@ export const ReportTab: React.FC = () => {
                   <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
                     <tr>
                       <td className="border-r border-slate-200 p-2 uppercase" colSpan={3}>
-                        TOTALES CONSOLIDADOS DEL SISTEMA DE ALUMBRADO
+                        {rt('TOTALES CONSOLIDADOS DEL SISTEMA DE ALUMBRADO', 'CONSOLIDATED LIGHTING SYSTEM TOTALS', 'TOTAIS CONSOLIDADOS DO SISTEMA DE ILUMINAÇÃO')}
                       </td>
                       <td className="border-r border-slate-200 p-2 text-center font-mono text-[11px]">
                         -{totalLightingPowerReductionKw.toFixed(2)} kW
@@ -1370,7 +2001,7 @@ export const ReportTab: React.FC = () => {
                         S/ {totalLightingInvestment.toFixed(2)}
                       </td>
                       <td className="border-r border-slate-200 p-2 text-center font-mono font-bold text-indigo-950">
-                        {averageLightingPaybackMonths.toFixed(1)} meses
+                        {averageLightingPaybackMonths.toFixed(1)} {rt('meses', 'months', 'meses')}
                       </td>
                       <td className="p-2 text-center text-emerald-800 font-bold text-[10px]">
                         100% RNE
@@ -1383,104 +2014,80 @@ export const ReportTab: React.FC = () => {
               {/* KPI Summary Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
                 <div className="border border-emerald-200 bg-emerald-50/50 p-3 rounded-lg">
-                  <span className="text-[11px] text-emerald-800 font-bold block">Ahorro Anual Proyectado</span>
+                  <span className="text-[11px] text-emerald-800 font-bold block">{rt('Ahorro Anual Proyectado', 'Projected Annual Savings', 'Economia Anual Projetada')}</span>
                   <span className="text-base font-black font-mono text-emerald-900">
                     S/ {totalLightingAnnualSavings.toFixed(0)}
                   </span>
-                  <span className="text-[10px] text-emerald-700 block mt-0.5">Disminución en facturación</span>
+                  <span className="text-[10px] text-emerald-700 block mt-0.5">{rt('Disminución en facturación', 'Billing cost reduction', 'Redução na fatura')}</span>
                 </div>
                 <div className="border border-indigo-200 bg-indigo-50/50 p-3 rounded-lg">
-                  <span className="text-[11px] text-indigo-800 font-bold block">Reducción de Potencia</span>
+                  <span className="text-[11px] text-indigo-800 font-bold block">{rt('Reducción de Potencia', 'Power Demand Reduction', 'Redução de Potência')}</span>
                   <span className="text-base font-black font-mono text-indigo-900">
                     {totalLightingPowerReductionKw.toFixed(2)} kW
                   </span>
-                  <span className="text-[10px] text-indigo-700 block mt-0.5">Alivio de carga térmica en TG</span>
+                  <span className="text-[10px] text-indigo-700 block mt-0.5">{rt('Alivio de carga térmica en TG', 'Thermal load relief on Main Panel', 'Alívio de carga térmica no QGBT')}</span>
                 </div>
                 <div className="border border-amber-200 bg-amber-50/50 p-3 rounded-lg">
-                  <span className="text-[11px] text-amber-800 font-bold block">Inversión Estimada</span>
+                  <span className="text-[11px] text-amber-800 font-bold block">{rt('Inversión Estimada', 'Estimated Investment', 'Investimento Estimado')}</span>
                   <span className="text-base font-black font-mono text-amber-900">
                     S/ {totalLightingInvestment.toFixed(0)}
                   </span>
-                  <span className="text-[10px] text-amber-700 block mt-0.5">Luminarias LED + mano de obra</span>
+                  <span className="text-[10px] text-amber-700 block mt-0.5">{rt('Luminarias LED + mano de obra', 'LED fixtures + installation labor', 'Luminárias LED + mão de obra')}</span>
                 </div>
                 <div className="border border-slate-200 bg-slate-50 p-3 rounded-lg">
-                  <span className="text-[11px] text-slate-700 font-bold block">Retorno de Inversión</span>
+                  <span className="text-[11px] text-slate-700 font-bold block">{rt('Retorno de Inversión', 'Return on Investment', 'Retorno de Investimento')}</span>
                   <span className="text-base font-black font-mono text-slate-900">
-                    {averageLightingPaybackMonths.toFixed(1)} Meses
+                    {averageLightingPaybackMonths.toFixed(1)} {rt('Meses', 'Months', 'Meses')}
                   </span>
-                  <span className="text-[10px] text-slate-600 block mt-0.5">Payback simple garantizado</span>
+                  <span className="text-[10px] text-slate-600 block mt-0.5">{rt('Payback simple garantizado', 'Guaranteed simple payback', 'Payback simples garantido')}</span>
                 </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* SECTION 6: MÓDULO INDEPENDIENTE DE PUESTA A TIERRA */}
-        {sections.groundingModule && (
-          <div className="space-y-3 font-sans">
-            <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>6. MÓDULO INDEPENDIENTE: PROTOCOLO DE MEDICIÓN DE PUESTA A TIERRA (ITSE / INDECI)</span>
-              <span className="text-xs font-mono font-bold text-emerald-800">LÍMITE CNE: ≤ 25.0 Ω</span>
-            </div>
-
-            <p className="text-xs text-slate-700 leading-relaxed">
-              Resultados del protocolo de medición con telurómetro calibrado mediante el método de caída de potencial (Wenner / 3 puntos) conforme al Código Nacional de Electricidad y directivas de Seguridad en Edificaciones ITSE:
-            </p>
-
-            <div className="overflow-x-auto text-xs">
-              <table className="w-full text-left border-collapse border border-slate-200">
-                <thead className="bg-slate-100 text-slate-700 font-bold">
-                  <tr>
-                    <th className="border border-slate-200 p-1.5">Código Pozo</th>
-                    <th className="border border-slate-200 p-1.5">Ubicación Física</th>
-                    <th className="border border-slate-200 p-1.5">Electrodo</th>
-                    <th className="border border-slate-200 p-1.5">Tratamiento Químico</th>
-                    <th className="border border-slate-200 p-1.5 text-center">R Medida (Ω)</th>
-                    <th className="border border-slate-200 p-1.5 text-center">Dictamen CNE</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(diagnostic.grounding || []).map(gw => (
-                    <tr key={gw.id}>
-                      <td className="border border-slate-200 p-1.5 font-bold font-mono text-slate-950">{gw.code}</td>
-                      <td className="border border-slate-200 p-1.5">{gw.location}</td>
-                      <td className="border border-slate-200 p-1.5 font-mono">Cu 5/8" x {gw.electrodeLengthM}m</td>
-                      <td className="border border-slate-200 p-1.5">{gw.treatmentChemical}</td>
-                      <td className="border border-slate-200 p-1.5 font-mono font-bold text-center text-sm">
-                        {gw.measuredResistanceOhm} Ω
-                      </td>
-                      <td className="border border-slate-200 p-1.5 text-center font-bold">
-                        {gw.measuredResistanceOhm <= 25.0 ? (
-                          <span className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                            CUMPLE NORMA (≤25Ω)
-                          </span>
-                        ) : (
-                          <span className="text-rose-800 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                            NO CUMPLE (&gt;25Ω)
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Pie de Hoja */}
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-[10px] font-mono text-slate-500 uppercase">
+              <span>LUXPROC • {rt('MAPEO ENERGÉTICO', 'ENERGY MAPPING', 'MAPEAMENTO ENERGÉTICO')}</span>
+              <span>CIP N° {currentUser?.cipNumber || generalData.cipNumber || '278034'}</span>
             </div>
           </div>
         )}
+
+        {/* ========================================================================= */}
+        {/* HOJA 6: FACTOR DE POTENCIA, SOLAR Y PLAN DE AHORRO (SECCIONES 7, 8, 9)    */}
+        {/* ========================================================================= */}
+        {((sections.powerFactor && diagnostic.powerFactor) ||
+          (sections.solarModule && diagnostic.solar) ||
+          sections.savingsPlan) && (
+          <div className="report-page-sheet rounded-2xl border border-slate-300 bg-white p-6 sm:p-10 shadow-md space-y-6 font-sans print:break-after-page">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-[11px] text-slate-500">
+              <div className="flex items-center gap-2">
+                <img
+                  src="https://i.imgur.com/WWChkA9.png"
+                  alt="LUXPROC"
+                  className="h-4 w-auto object-contain"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="font-bold text-slate-800 uppercase">{rt('MAPEO ENERGÉTICO • INFORME PERICIAL CIP', 'ENERGY MAPPING • CIP EXPERT REPORT', 'MAPEAMENTO ENERGÉTICO • RELATÓRIO CIP')}</span>
+              </div>
+              <span className="font-mono font-bold text-amber-800">
+                {rt('EXPEDIENTE:', 'FILE NO.:', 'PROCESSO:')} {generalData.diagnosticCode || 'EDIAG-2026-001'}
+              </span>
+            </div>
 
         {/* SECTION 7: FACTOR DE POTENCIA Y PENALIDADES */}
         {sections.powerFactor && diagnostic.powerFactor && (
           <div className="space-y-3 font-sans">
             <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>7. ANÁLISIS DE FACTOR DE POTENCIA Y ENERGÍA REACTIVA</span>
+              <span>{rt('7. ANÁLISIS DE FACTOR DE POTENCIA Y ENERGÍA REACTIVA', '7. POWER FACTOR & REACTIVE ENERGY ANALYSIS', '7. ANÁLISE DE FATOR DE POTÊNCIA E ENERGIA REATIVA')}</span>
               <span className="text-xs font-mono font-bold">
-                FP ACTUAL: {diagnostic.powerFactor.currentPowerFactor?.toFixed(2) || '0.84'} (META: ≥ 0.96)
+                {rt('FP ACTUAL:', 'CURRENT PF:', 'FP ATUAL:')} {diagnostic.powerFactor.currentPowerFactor?.toFixed(2) || '0.84'} ({rt('META: ≥ 0.96', 'TARGET: ≥ 0.96', 'META: ≥ 0.96')})
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
               <div>
-                <span className="text-slate-500 block">Factor de Potencia Promedio:</span>
+                <span className="text-slate-500 block">{rt('Factor de Potencia Promedio:', 'Average Power Factor:', 'Fator de Potência Médio:')}</span>
                 <strong className={`font-mono text-sm ${
                   (diagnostic.powerFactor.currentPowerFactor || 0) >= 0.96 ? 'text-emerald-700' : 'text-rose-700'
                 }`}>
@@ -1488,15 +2095,15 @@ export const ReportTab: React.FC = () => {
                 </strong>
               </div>
               <div>
-                <span className="text-slate-500 block">Penalidad Anual Proyectada:</span>
+                <span className="text-slate-500 block">{rt('Penalidad Anual Proyectada:', 'Projected Annual Penalty:', 'Penalidade Anual Projetada:')}</span>
                 <strong className="font-mono text-sm text-rose-700">
-                  S/. {((diagnostic.powerFactor.monthlyPenaltySoles || 420) * 12).toLocaleString()} / año
+                  S/. {((diagnostic.powerFactor.monthlyPenaltySoles || 420) * 12).toLocaleString()} / {rt('año', 'yr', 'ano')}
                 </strong>
               </div>
               <div>
-                <span className="text-slate-500 block">Banco de Condensadores Requerido:</span>
+                <span className="text-slate-500 block">{rt('Banco de Condensadores Requerido:', 'Required Capacitor Bank:', 'Banco de Capacitores Necessário:')}</span>
                 <strong className="font-mono text-sm text-indigo-700">
-                  {diagnostic.powerFactor.targetPowerFactorKvar || 25} kvar Automático
+                  {diagnostic.powerFactor.targetPowerFactorKvar || 25} kvar {rt('Automático', 'Automatic', 'Automático')}
                 </strong>
               </div>
             </div>
@@ -1507,28 +2114,28 @@ export const ReportTab: React.FC = () => {
         {sections.solarModule && diagnostic.solar && (
           <div className="space-y-3 font-sans">
             <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>8. EVALUACIÓN DE AUTOGENERACIÓN SOLAR FOTOVOLTAICA</span>
+              <span>{rt('8. EVALUACIÓN DE AUTOGENERACIÓN SOLAR FOTOVOLTAICA', '8. SOLAR PHOTOVOLTAIC SELF-GENERATION ASSESSMENT', '8. AVALIAÇÃO DE AUTOGERAÇÃO SOLAR FOTOVOLTAICA')}</span>
               <span className="text-xs font-mono font-bold text-amber-800">
-                POTENCIA: {diagnostic.solar.scenarioKwp} kWp
+                {rt('POTENCIA:', 'CAPACITY:', 'POTÊNCIA:')} {diagnostic.solar.scenarioKwp} kWp
               </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-center">
               <div className="border border-slate-200 p-2 rounded-lg">
-                <span className="text-slate-500 block text-[10px]">Generación Mensual</span>
+                <span className="text-slate-500 block text-[10px]">{rt('Generación Mensual', 'Monthly Generation', 'Geração Mensal')}</span>
                 <span className="font-mono font-bold">{diagnostic.solar.monthlyGenerationKwh?.toLocaleString()} kWh</span>
               </div>
               <div className="border border-slate-200 p-2 rounded-lg">
-                <span className="text-slate-500 block text-[10px]">Ahorro Mensual</span>
+                <span className="text-slate-500 block text-[10px]">{rt('Ahorro Mensual', 'Monthly Savings', 'Economia Mensal')}</span>
                 <span className="font-mono font-bold text-emerald-700">S/. {diagnostic.solar.monthlySavingsSoles?.toLocaleString()}</span>
               </div>
               <div className="border border-slate-200 p-2 rounded-lg">
-                <span className="text-slate-500 block text-[10px]">Inversión Estimada</span>
+                <span className="text-slate-500 block text-[10px]">{rt('Inversión Estimada', 'Estimated Investment', 'Investimento Estimado')}</span>
                 <span className="font-mono font-bold">S/. {diagnostic.solar.estimatedCostSoles?.toLocaleString()}</span>
               </div>
               <div className="border border-slate-200 p-2 rounded-lg">
-                <span className="text-slate-500 block text-[10px]">Retorno Simple (ROI)</span>
-                <span className="font-mono font-bold text-indigo-700">{diagnostic.solar.paybackYears?.toFixed(1)} años</span>
+                <span className="text-slate-500 block text-[10px]">{rt('Retorno Simple (ROI)', 'Simple Payback (ROI)', 'Retorno Simples (ROI)')}</span>
+                <span className="font-mono font-bold text-indigo-700">{diagnostic.solar.paybackYears?.toFixed(1)} {rt('años', 'years', 'anos')}</span>
               </div>
             </div>
           </div>
@@ -1538,19 +2145,19 @@ export const ReportTab: React.FC = () => {
         {sections.savingsPlan && (
           <div className="space-y-3 font-sans">
             <div className="border-b border-slate-300 pb-1 font-bold text-sm text-slate-900 uppercase tracking-wide flex items-center justify-between">
-              <span>9. PLAN DE EFICIENCIA ENERGÉTICA Y EVALUACIÓN FINANCIERA</span>
-              <span className="text-xs font-mono font-bold text-emerald-800">PAYBACK: {paybackYears.toFixed(1)} AÑOS</span>
+              <span>{rt('9. PLAN DE EFICIENCIA ENERGÉTICA Y EVALUACIÓN FINANCIERA', '9. ENERGY EFFICIENCY PLAN & FINANCIAL EVALUATION', '9. PLANO DE EFICIÊNCIA ENERGÉTICA E AVALIAÇÃO FINANCEIRA')}</span>
+              <span className="text-xs font-mono font-bold text-emerald-800">{rt('PAYBACK:', 'PAYBACK:', 'PAYBACK:')} {paybackYears.toFixed(1)} {rt('AÑOS', 'YEARS', 'ANOS')}</span>
             </div>
 
             <div className="overflow-x-auto text-xs">
               <table className="w-full text-left border-collapse border border-slate-200">
                 <thead className="bg-slate-100 text-slate-700 font-bold">
                   <tr>
-                    <th className="border border-slate-200 p-1.5">Medida de Ahorro Propuesta</th>
-                    <th className="border border-slate-200 p-1.5">Categoría</th>
-                    <th className="border border-slate-200 p-1.5 text-right">Inversión (S/.)</th>
-                    <th className="border border-slate-200 p-1.5 text-right">Ahorro Anual (S/.)</th>
-                    <th className="border border-slate-200 p-1.5 text-right">Payback</th>
+                    <th className="border border-slate-200 p-1.5">{rt('Medida de Ahorro Propuesta', 'Proposed Energy Saving Measure', 'Medida de Economia Proposta')}</th>
+                    <th className="border border-slate-200 p-1.5">{rt('Categoría', 'Category', 'Categoria')}</th>
+                    <th className="border border-slate-200 p-1.5 text-right">{rt('Inversión (S/.)', 'Investment (S/.)', 'Investimento (S/.)')}</th>
+                    <th className="border border-slate-200 p-1.5 text-right">{rt('Ahorro Anual (S/.)', 'Annual Savings (S/.)', 'Economia Anual (S/.)')}</th>
+                    <th className="border border-slate-200 p-1.5 text-right">{rt('Payback', 'Payback', 'Payback')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1560,22 +2167,51 @@ export const ReportTab: React.FC = () => {
                       <td className="border border-slate-200 p-1.5 text-slate-500">{op.category}</td>
                       <td className="border border-slate-200 p-1.5 font-mono text-right">S/. {op.estimatedInvestmentSoles?.toLocaleString()}</td>
                       <td className="border border-slate-200 p-1.5 font-mono text-right font-bold text-emerald-700">S/. {op.annualSavingsSoles?.toLocaleString()}</td>
-                      <td className="border border-slate-200 p-1.5 font-mono text-right">{op.paybackYears} a</td>
+                      <td className="border border-slate-200 p-1.5 font-mono text-right">{op.paybackYears} {rt('a', 'yr', 'a')}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-slate-100 font-bold">
                   <tr>
-                    <td colSpan={2} className="border border-slate-200 p-1.5 uppercase text-right">Total Inversión y Ahorro:</td>
+                    <td colSpan={2} className="border border-slate-200 p-1.5 uppercase text-right">{rt('Total Inversión y Ahorro:', 'Total Investment & Savings:', 'Total Investimento e Economia:')}</td>
                     <td className="border border-slate-200 p-1.5 font-mono text-right">S/. {totalInvestmentSoles.toLocaleString()}</td>
                     <td className="border border-slate-200 p-1.5 font-mono text-right text-emerald-800">S/. {totalAnnualSavingsSoles.toLocaleString()}</td>
-                    <td className="border border-slate-200 p-1.5 font-mono text-right">{paybackYears.toFixed(1)} a</td>
+                    <td className="border border-slate-200 p-1.5 font-mono text-right">{paybackYears.toFixed(1)} {rt('a', 'yr', 'a')}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
         )}
+
+            {/* Pie de Hoja */}
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-[10px] font-mono text-slate-500 uppercase">
+              <span>LUXPROC • {rt('MAPEO ENERGÉTICO', 'ENERGY MAPPING', 'MAPEAMENTO ENERGÉTICO')}</span>
+              <span>CIP N° {currentUser?.cipNumber || generalData.cipNumber || '278034'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* HOJA FINAL: RECOMENDACIONES Y DICTAMEN OFICIAL CIP (SECCIONES 10 Y 11)    */}
+        {/* ========================================================================= */}
+        {(sections.allRecommendations || sections.cipStatement) && (
+          <div className="report-page-sheet rounded-2xl border border-slate-300 bg-white p-6 sm:p-10 shadow-md space-y-6 font-sans">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-[11px] text-slate-500">
+              <div className="flex items-center gap-2">
+                <img
+                  src="https://i.imgur.com/WWChkA9.png"
+                  alt="LUXPROC"
+                  className="h-4 w-auto object-contain"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="font-bold text-slate-800 uppercase">{rt('MAPEO ENERGÉTICO • INFORME PERICIAL CIP', 'ENERGY MAPPING • CIP EXPERT REPORT', 'MAPEAMENTO ENERGÉTICO • RELATÓRIO CIP')}</span>
+              </div>
+              <span className="font-mono font-bold text-amber-800">
+                {rt('EXPEDIENTE:', 'FILE NO.:', 'PROCESSO:')} {generalData.diagnosticCode || 'EDIAG-2026-001'}
+              </span>
+            </div>
 
         {/* SECTION 10: RECOMENDACIONES TÉCNICAS INTEGRALES DE MEJORA DE TODO */}
         {sections.allRecommendations && (
@@ -1689,25 +2325,21 @@ export const ReportTab: React.FC = () => {
               </p>
             </div>
 
-            {/* Signature Box */}
-            <div className="flex justify-end pt-12 text-center text-xs font-sans">
-              <div className="w-72 border-t-2 border-slate-900 pt-3 space-y-1">
-                <div className="font-bold text-slate-950 uppercase text-sm tracking-wide">
-                  {currentUser?.name || generalData.responsibleEngineer || 'Ing. Víctor Fernando Becerra Terán'}
-                </div>
-                <div className="text-xs font-bold text-amber-900 font-mono">
-                  CIP N° {currentUser?.cipNumber || generalData.cipNumber || '278034'}
-                </div>
-                <div className="text-[11px] text-slate-700 font-medium">
-                  {currentUser?.specialty || generalData.specialty || 'Ingeniero Electrónico'}
-                </div>
-                <div className="text-[10.5px] text-slate-500 font-medium">
-                  {currentUser?.professionalCollege || generalData.professionalCollege || 'Colegio de Ingenieros del Perú - Consejo Departamental de La Libertad (CD La Libertad)'}
-                </div>
-                <div className="text-[9.5px] text-slate-400 uppercase pt-1 border-t border-slate-200 mt-2 font-mono">
+            {/* Signature Box: Solo la línea superior y Firma y Sello del Ingeniero Colegiado */}
+            <div className="flex justify-end pt-16 text-center text-xs font-sans">
+              <div className="w-72 border-t-2 border-slate-900 pt-2.5">
+                <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider font-mono">
                   {rt('Firma y Sello del Ingeniero Colegiado', 'Signature & Stamp of Collegiate Engineer', 'Assinatura e Carimbo do Engenheiro Registrado')}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+            {/* Pie de Hoja Final */}
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-[10px] font-mono text-slate-500 uppercase">
+              <span>LUXPROC • {rt('MAPEO ENERGÉTICO', 'ENERGY MAPPING', 'MAPEAMENTO ENERGÉTICO')}</span>
+              <span>CIP N° {currentUser?.cipNumber || generalData.cipNumber || '278034'}</span>
             </div>
           </div>
         )}

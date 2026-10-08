@@ -32,6 +32,7 @@ export const Sidebar: React.FC = () => {
     setShowNewProjectModal,
     savedProjects,
     subscriptionPlan,
+    setIsSubscriptionModalOpen,
     isMasterUser
   } = useDiagnostic();
   const { t, language } = useLanguage();
@@ -139,8 +140,39 @@ export const Sidebar: React.FC = () => {
           </nav>
         </div>
 
-        {/* Footer Info */}
-        <div className="mt-4 border-t border-slate-100 pt-3 px-1">
+        {/* Footer Info & Subscription Plan Card */}
+        <div className="mt-4 border-t border-slate-100 pt-3 px-1 space-y-3">
+          <button
+            type="button"
+            onClick={() => setIsSubscriptionModalOpen(true)}
+            className={`w-full rounded-2xl p-3 text-left transition-all cursor-pointer border ${
+              subscriptionPlan === 'PREMIUM'
+                ? 'bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 border-indigo-700 text-white shadow-sm'
+                : 'bg-gradient-to-br from-amber-50 via-white to-indigo-50/60 border-amber-300/80 hover:border-amber-400 text-slate-900 shadow-2xs'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className={`h-3.5 w-3.5 ${subscriptionPlan === 'PREMIUM' ? 'text-amber-400' : 'text-amber-600'}`} />
+                <span className={`text-[10px] font-black uppercase tracking-wider ${subscriptionPlan === 'PREMIUM' ? 'text-amber-300' : 'text-amber-900'}`}>
+                  {subscriptionPlan === 'PREMIUM'
+                    ? tr('Suscripción PRO Activa', 'Active PRO Subscription', 'Assinatura PRO Ativa')
+                    : tr('Plan Estándar Activo', 'Active Standard Plan', 'Plano Padrão Ativo')}
+                </span>
+              </div>
+              <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-black uppercase ${
+                subscriptionPlan === 'PREMIUM' ? 'bg-amber-400 text-slate-950' : 'bg-indigo-600 text-white'
+              }`}>
+                {subscriptionPlan === 'PREMIUM' ? 'PRO' : tr('Mejorar', 'Upgrade', 'Upgrade')}
+              </span>
+            </div>
+            <div className={`text-[11px] font-medium mt-1 truncate ${subscriptionPlan === 'PREMIUM' ? 'text-slate-300' : 'text-slate-600'}`}>
+              {subscriptionPlan === 'PREMIUM'
+                ? tr('Todos los módulos desbloqueados', 'All modules unlocked', 'Todos os módulos desbloqueados')
+                : tr('Clic para ver Planes de Suscripción', 'Click to view Subscription Plans', 'Clique para ver Planos')}
+            </div>
+          </button>
+
           <div className="text-[10px] text-slate-400">
             <div className="font-bold text-slate-500 uppercase tracking-wider text-[9px] mb-0.5">
               {tr('Normas Técnicas', 'Technical Standards', 'Normas Técnicas')}

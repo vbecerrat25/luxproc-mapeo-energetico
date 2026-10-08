@@ -336,9 +336,7 @@ export const WiringVerificationTab: React.FC = () => {
         if (parsed?.board) return parsed.board;
       }
     } catch {}
-    return diagnostic.generalData.installationType === 'vivienda'
-      ? DEFAULT_HOUSE_PRESET.board
-      : DEFAULT_HOUSE_PRESET.board;
+    return DEFAULT_HOUSE_PRESET.board;
   });
 
   const [circuits, setCircuits] = useState<WiringCircuitItem[]>(() => {
@@ -346,12 +344,12 @@ export const WiringVerificationTab: React.FC = () => {
       const saved = localStorage.getItem(STORAGE_KEY_WIRING);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed?.circuits) && parsed.circuits.length > 0) {
+        if (Array.isArray(parsed?.circuits)) {
           return parsed.circuits;
         }
       }
     } catch {}
-    return DEFAULT_HOUSE_PRESET.circuits;
+    return [];
   });
 
   useEffect(() => {
@@ -359,6 +357,15 @@ export const WiringVerificationTab: React.FC = () => {
       localStorage.setItem(STORAGE_KEY_WIRING, JSON.stringify({ board, circuits }));
     } catch {}
   }, [board, circuits]);
+
+  useEffect(() => {
+    const handleWorkspaceCleaned = () => {
+      setBoard(DEFAULT_HOUSE_PRESET.board);
+      setCircuits([]);
+    };
+    window.addEventListener('e_diagnosis_workspace_cleaned', handleWorkspaceCleaned);
+    return () => window.removeEventListener('e_diagnosis_workspace_cleaned', handleWorkspaceCleaned);
+  }, []);
 
   const handleLoadHousePreset = () => {
     setBoard(DEFAULT_HOUSE_PRESET.board);
@@ -925,24 +932,24 @@ export const WiringVerificationTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Sub-card 1: Suministro y Acometida */}
-          <div className="rounded-2xl bg-slate-50/80 border border-slate-200/80 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                <Zap className="w-4 h-4 text-amber-600" />
-                <span>{tr('Conexión y Acometida', 'Supply & Feeder Connection', 'Conexão e Entrada')}</span>
+          <div className="min-w-0 rounded-2xl bg-slate-50/80 border border-slate-200/80 p-4 space-y-3 overflow-hidden">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5 min-w-0 truncate">
+                <Zap className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="truncate">{tr('Conexión y Acometida', 'Supply & Feeder Connection', 'Conexão e Entrada')}</span>
               </span>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+            <div className="min-w-0">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
                 {tr('Tipo de Instalación Auditada:', 'Audited Property Type:', 'Tipo de Imóvel Auditado:')}
               </label>
               <select
                 value={board.propertyCategory}
                 onChange={e => setBoard({ ...board, propertyCategory: e.target.value as MainBoardConfig['propertyCategory'] })}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
               >
                 <option value="CASA_VIVIENDA">{tr('Casa / Vivienda Residencial', 'House / Residential Home', 'Casa / Residência Familiar')}</option>
                 <option value="EMPRESA_OFICINA">{tr('Empresa / Oficinas Corporativas', 'Company / Corporate Offices', 'Empresa / Escritórios')}</option>
@@ -951,14 +958,14 @@ export const WiringVerificationTab: React.FC = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+            <div className="min-w-0">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
                 {tr('Sistema de Tensión y Fases:', 'Voltage & Phase System:', 'Sistema de Tensão e Fases:')}
               </label>
               <select
                 value={board.supplySystem}
                 onChange={e => setBoard({ ...board, supplySystem: e.target.value as MainBoardConfig['supplySystem'] })}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
               >
                 <option value="MONOFASICO_220V">{tr('Monofásico 220V (2 Hilos + Tierra)', 'Single-Phase 220V (2W + Ground)', 'Monofásico 220V (Fase + Neutro + Terra)')}</option>
                 <option value="TRIFASICO_220V">{tr('Trifásico 220V Delta (3 Fases + Tierra)', 'Three-Phase 220V Delta (3W + Ground)', 'Trifásico 220V Delta (3 Fases + Terra)')}</option>
@@ -967,14 +974,14 @@ export const WiringVerificationTab: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+              <div className="min-w-0">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
                   {tr('Cable Acometida:', 'Feeder Cable:', 'Cabo de Entrada:')}
                 </label>
                 <select
                   value={board.feederCableType}
                   onChange={e => setBoard({ ...board, feederCableType: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-900"
+                  className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-900"
                 >
                   <option value="NH-80_LSOH">NH-80 (Libre Halógenos)</option>
                   <option value="THW-90">THW-90 (90°C)</option>
@@ -982,14 +989,14 @@ export const WiringVerificationTab: React.FC = () => {
                   <option value="TW-80">TW-80 (Estándar)</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+              <div className="min-w-0">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
                   {tr('Calibre Acometida:', 'Feeder Gauge:', 'Bitola Entrada:')}
                 </label>
                 <select
                   value={board.feederGauge}
                   onChange={e => setBoard({ ...board, feederGauge: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-900"
+                  className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-900"
                 >
                   <option value="12_AWG">12 AWG (3.3 mm²)</option>
                   <option value="10_AWG">10 AWG (5.3 mm²)</option>
@@ -1003,25 +1010,25 @@ export const WiringVerificationTab: React.FC = () => {
           </div>
 
           {/* Sub-card 2: Llave Termomagnética Principal */}
-          <div className="rounded-2xl bg-amber-50/60 border border-amber-200/80 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
-                <Gauge className="w-4 h-4 text-amber-600" />
-                <span>{tr('Llave Termomagnética General', 'Main Thermomagnetic Breaker', 'Disjuntor Termomagnético Geral')}</span>
+          <div className="min-w-0 rounded-2xl bg-amber-50/60 border border-amber-200/80 p-4 space-y-3 overflow-hidden">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5 min-w-0 truncate">
+                <Gauge className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="truncate">{tr('Llave Termomagnética General', 'Main Thermomagnetic Breaker', 'Disjuntor Termomagnético Geral')}</span>
               </span>
-              <span className="text-[10px] font-mono font-bold bg-amber-200/80 text-amber-950 px-2 py-0.5 rounded">
+              <span className="text-[10px] font-mono font-bold bg-amber-200/80 text-amber-950 px-2 py-0.5 rounded shrink-0 whitespace-nowrap">
                 ITM Principal
               </span>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+            <div className="min-w-0">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
                 {tr('Valor de la Llave Principal (Amperios):', 'Main Breaker Rating (Amps):', 'Valor do Disjuntor Geral (Ampères):')}
               </label>
               <select
                 value={board.mainBreakerAmps}
                 onChange={e => setBoard({ ...board, mainBreakerAmps: Number(e.target.value) })}
-                className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-black text-slate-900 focus:border-amber-600 focus:outline-none"
+                className="w-full min-w-0 truncate rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-black text-slate-900 focus:border-amber-600 focus:outline-none"
               >
                 <option value={16}>16 A (Baja carga)</option>
                 <option value={20}>20 A (Vivienda pequeña)</option>
@@ -1040,42 +1047,42 @@ export const WiringVerificationTab: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-700 mb-1">
+              <div className="min-w-0">
+                <label className="block text-[10px] font-bold text-slate-700 mb-1 truncate">
                   {tr('N° Polos:', 'Poles:', 'Polos:')}
                 </label>
                 <select
                   value={board.mainBreakerPoles}
                   onChange={e => setBoard({ ...board, mainBreakerPoles: e.target.value as MainBoardConfig['mainBreakerPoles'] })}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
+                  className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
                 >
                   <option value="2P">2P (Bipolar)</option>
                   <option value="3P">3P (Tripolar)</option>
                   <option value="4P">4P (Tetrapolar)</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-700 mb-1">
+              <div className="min-w-0">
+                <label className="block text-[10px] font-bold text-slate-700 mb-1 truncate">
                   {tr('Curva Disparo:', 'Trip Curve:', 'Curva:')}
                 </label>
                 <select
                   value={board.mainBreakerCurve}
                   onChange={e => setBoard({ ...board, mainBreakerCurve: e.target.value as MainBoardConfig['mainBreakerCurve'] })}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
+                  className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
                 >
                   <option value="B">Curva B</option>
                   <option value="C">Curva C</option>
                   <option value="D">Curva D</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-700 mb-1">
+              <div className="min-w-0">
+                <label className="block text-[10px] font-bold text-slate-700 mb-1 truncate">
                   {tr('Ruptura (Icu):', 'Breaking kA:', 'Ruptura kA:')}
                 </label>
                 <select
                   value={board.mainBreakerKa}
                   onChange={e => setBoard({ ...board, mainBreakerKa: Number(e.target.value) })}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
+                  className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
                 >
                   <option value={6}>6 kA</option>
                   <option value={10}>10 kA</option>
@@ -1087,25 +1094,25 @@ export const WiringVerificationTab: React.FC = () => {
           </div>
 
           {/* Sub-card 3: Llave Diferencial General (ID / RCD) */}
-          <div className="rounded-2xl bg-emerald-50/60 border border-emerald-200/80 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>{tr('Llave Diferencial (ID / RCD)', 'Differential Switch (RCD)', 'Interruptor Diferencial (DR)')}</span>
+          <div className="min-w-0 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 p-4 space-y-3 overflow-hidden">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5 min-w-0 truncate">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="truncate">{tr('Llave Diferencial (ID / RCD)', 'Differential Switch (RCD)', 'Interruptor Diferencial (DR)')}</span>
               </span>
-              <span className="text-[10px] font-mono font-bold bg-emerald-200/80 text-emerald-950 px-2 py-0.5 rounded">
+              <span className="text-[10px] font-mono font-bold bg-emerald-200/80 text-emerald-950 px-2 py-0.5 rounded shrink-0 whitespace-nowrap">
                 CNE 020-132
               </span>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+            <div className="min-w-0">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1 truncate">
                 {tr('Estado de la Llave Diferencial:', 'Differential Switch Status:', 'Estado do Disjuntor Diferencial:')}
               </label>
               <select
                 value={board.mainRcdStatus}
                 onChange={e => setBoard({ ...board, mainRcdStatus: e.target.value as MainBoardConfig['mainRcdStatus'] })}
-                className="w-full rounded-xl border border-emerald-300 bg-white px-3 py-2 text-xs font-black text-slate-900 focus:border-emerald-600 focus:outline-none"
+                className="w-full min-w-0 truncate rounded-xl border border-emerald-300 bg-white px-3 py-2 text-xs font-black text-slate-900 focus:border-emerald-600 focus:outline-none"
               >
                 <option value="OPERATIVO">{tr('✓ Instalada y Operativa (Botón Test OK)', '✓ Installed & Operational (Test Button OK)', '✓ Instalado e Operacional (Botão Teste OK)')}</option>
                 <option value="SIN_DIFERENCIAL">{tr('❌ NO TIENE LLAVE DIFERENCIAL (Peligro Electrocución)', '❌ NO DIFFERENTIAL SWITCH (Electrocution Hazard)', '❌ NÃO TEM DISJUNTOR DIFERENCIAL (Risco de Choque)')}</option>
@@ -1115,14 +1122,14 @@ export const WiringVerificationTab: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-700 mb-1">
+              <div className="min-w-0">
+                <label className="block text-[10px] font-bold text-slate-700 mb-1 truncate">
                   {tr('Sensibilidad:', 'Sensitivity:', 'Sensibilidade:')}
                 </label>
                 <select
                   value={board.mainRcdSensitivityMa}
                   onChange={e => setBoard({ ...board, mainRcdSensitivityMa: Number(e.target.value) as MainBoardConfig['mainRcdSensitivityMa'] })}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
+                  className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
                 >
                   <option value={10}>10 mA</option>
                   <option value={30}>30 mA (CNE)</option>
@@ -1130,14 +1137,14 @@ export const WiringVerificationTab: React.FC = () => {
                   <option value={300}>300 mA</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-700 mb-1">
+              <div className="min-w-0">
+                <label className="block text-[10px] font-bold text-slate-700 mb-1 truncate">
                   {tr('Amperaje ID:', 'RCD Amps:', 'Corrente DR:')}
                 </label>
                 <select
                   value={board.mainRcdAmps}
                   onChange={e => setBoard({ ...board, mainRcdAmps: Number(e.target.value) })}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
+                  className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
                 >
                   <option value={25}>25 A</option>
                   <option value={40}>40 A</option>
@@ -1146,14 +1153,14 @@ export const WiringVerificationTab: React.FC = () => {
                   <option value={100}>100 A</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-700 mb-1">
+              <div className="min-w-0">
+                <label className="block text-[10px] font-bold text-slate-700 mb-1 truncate">
                   {tr('Clase Tipo:', 'RCD Type:', 'Classe DR:')}
                 </label>
                 <select
                   value={board.mainRcdClass}
                   onChange={e => setBoard({ ...board, mainRcdClass: e.target.value as MainBoardConfig['mainRcdClass'] })}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
+                  className="w-full min-w-0 truncate rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold text-slate-900"
                 >
                   <option value="AC">Clase AC</option>
                   <option value="A">Clase A</option>
@@ -1202,7 +1209,7 @@ export const WiringVerificationTab: React.FC = () => {
             ].map(item => (
               <label
                 key={item.key}
-                className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${
+                className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all min-w-0 ${
                   board[item.key]
                     ? 'bg-indigo-50/70 border-indigo-300 text-indigo-950'
                     : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -1212,9 +1219,9 @@ export const WiringVerificationTab: React.FC = () => {
                   type="checkbox"
                   checked={board[item.key]}
                   onChange={e => setBoard({ ...board, [item.key]: e.target.checked })}
-                  className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                  className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 shrink-0"
                 />
-                <span>{item.label}</span>
+                <span className="min-w-0 leading-snug">{item.label}</span>
               </label>
             ))}
           </div>
@@ -1222,21 +1229,21 @@ export const WiringVerificationTab: React.FC = () => {
       </div>
 
       {/* SECTION 2: CIRCUIT-BY-CIRCUIT WIRING, WIRE COLORS, CURRENT & BREAKERS INSPECTOR */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-5">
+      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-xs space-y-5 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0">
               <Cable className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-900">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
                 {tr(
                   '2. Inspección Detallada de Cableado, Colores de Cable, Corriente y Llaves por Circuito',
                   '2. Detailed Circuit Wiring, Wire Colors, Measured Current & Breakers Inspection',
                   '2. Inspeção Detalhada da Fiação, Cores de Cabos, Corrente e Disjuntores por Circuito'
                 )}
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 mt-0.5">
                 {tr(
                   'Seleccione para cada circuito el tipo de cable, calibre, color de Fase/Neutro/Tierra, corriente medida en Amperios y valores de sus llaves',
                   'Select for each circuit the cable type, gauge, Phase/Neutral/Ground wire colors, measured current (Amps), and breaker ratings',
@@ -1249,9 +1256,9 @@ export const WiringVerificationTab: React.FC = () => {
           <button
             type="button"
             onClick={handleAddCircuit}
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer shrink-0"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer shrink-0 whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             <span>{tr('+ Agregar Línea / Circuito', '+ Add Circuit / Line', '+ Adicionar Circuito / Linha')}</span>
           </button>
         </div>
@@ -1265,7 +1272,7 @@ export const WiringVerificationTab: React.FC = () => {
             return (
               <div
                 key={c.id}
-                className={`rounded-2xl border-2 p-4 sm:p-5 transition-all space-y-4 ${
+                className={`rounded-2xl border-2 p-3.5 sm:p-5 transition-all space-y-4 overflow-hidden ${
                   c.status === 'CRITICO'
                     ? 'border-rose-300 bg-rose-50/30'
                     : c.status === 'OBSERVADO'
@@ -1274,25 +1281,25 @@ export const WiringVerificationTab: React.FC = () => {
                 }`}
               >
                 {/* Circuit Top Header Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
-                  <div className="flex flex-wrap items-center gap-2.5 flex-1">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
                     <input
                       type="text"
                       value={c.code}
                       onChange={e => handleUpdateCircuit(c.id, { code: e.target.value })}
-                      className="w-16 font-mono font-black text-xs text-center bg-slate-900 text-amber-400 rounded-lg px-2 py-1.5 border border-slate-700"
+                      className="w-16 shrink-0 font-mono font-black text-xs text-center bg-slate-900 text-amber-400 rounded-lg px-2 py-1.5 border border-slate-700"
                     />
                     <input
                       type="text"
                       value={c.zoneName}
                       onChange={e => handleUpdateCircuit(c.id, { zoneName: e.target.value })}
                       placeholder={tr('Nombre de la Zona / Ambiente o Circuito', 'Zone / Room or Circuit Name', 'Nome da Zona / Ambiente ou Circuito')}
-                      className="flex-1 min-w-[220px] font-bold text-sm text-slate-900 bg-white border border-slate-300 rounded-xl px-3 py-1.5 focus:border-indigo-600 focus:outline-none"
+                      className="flex-1 min-w-[160px] sm:min-w-[220px] font-bold text-sm text-slate-900 bg-white border border-slate-300 rounded-xl px-3 py-1.5 focus:border-indigo-600 focus:outline-none"
                     />
                     <select
                       value={c.usageType}
                       onChange={e => handleUpdateCircuit(c.id, { usageType: e.target.value as WiringCircuitItem['usageType'] })}
-                      className="rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700"
+                      className="w-full sm:w-auto min-w-0 truncate rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700"
                     >
                       <option value="ALUMBRADO">{tr('💡 Alumbrado / Iluminación', '💡 Lighting Circuit', '💡 Iluminação')}</option>
                       <option value="TOMACORRIENTES">{tr('🔌 Tomacorrientes Generales', '🔌 General Outlets', '🔌 Tomadas Gerais')}</option>
@@ -1305,9 +1312,9 @@ export const WiringVerificationTab: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider whitespace-nowrap ${
                         c.status === 'CRITICO'
                           ? 'bg-rose-600 text-white shadow-xs'
                           : c.status === 'OBSERVADO'
@@ -1317,17 +1324,17 @@ export const WiringVerificationTab: React.FC = () => {
                     >
                       {c.status === 'CRITICO' ? (
                         <>
-                          <Flame className="w-3.5 h-3.5" />
+                          <Flame className="w-3.5 h-3.5 shrink-0" />
                           <span>{tr('Riesgo Crítico', 'Critical Hazard', 'Risco Crítico')}</span>
                         </>
                       ) : c.status === 'OBSERVADO' ? (
                         <>
-                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                           <span>{tr('Con Observación', 'Warning', 'Com Observação')}</span>
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                           <span>{tr('Conforme CNE', 'Code Compliant', 'Conforme Norma')}</span>
                         </>
                       )}
@@ -1336,7 +1343,7 @@ export const WiringVerificationTab: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleDeleteCircuit(c.id)}
-                      className="p-1.5 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors cursor-pointer shrink-0"
                       title={tr('Eliminar circuito', 'Delete circuit', 'Excluir circuito')}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1345,24 +1352,24 @@ export const WiringVerificationTab: React.FC = () => {
                 </div>
 
                 {/* Grid of Selectors: 1) Cable & Gauge, 2) Wire Colors, 3) Current & Length, 4) Breakers & RCD */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-3.5 sm:gap-4">
                   {/* Column 1: Tipo de Cable, Calibre y Canalización */}
-                  <div className="bg-white rounded-xl p-3.5 border border-slate-200/90 space-y-2.5">
-                    <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center justify-between">
-                      <span>{tr('A. Tipo y Calibre de Cable', 'A. Cable Type & Gauge', 'A. Tipo e Bitola do Cabo')}</span>
-                      <span className="font-mono text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">
+                  <div className="min-w-0 bg-white rounded-xl p-3.5 border border-slate-200/90 space-y-2.5 overflow-hidden">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center justify-between gap-2">
+                      <span className="truncate">{tr('A. Tipo y Calibre de Cable', 'A. Cable Type & Gauge', 'A. Tipo e Bitola do Cabo')}</span>
+                      <span className="font-mono text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
                         Máx {c.maxCableAmps}A
                       </span>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                         {tr('Tipo de Aislamiento del Cable:', 'Cable Insulation Type:', 'Tipo de Isolamento do Cabo:')}
                       </label>
                       <select
                         value={c.cableType}
                         onChange={e => handleUpdateCircuit(c.id, { cableType: e.target.value as WiringCircuitItem['cableType'] })}
-                        className={`w-full rounded-lg border px-2.5 py-1.5 text-xs font-bold ${
+                        className={`w-full min-w-0 truncate rounded-lg border px-2.5 py-1.5 text-xs font-bold ${
                           c.cableType === 'MELLIZO' || c.cableType === 'GPT_AUTO'
                             ? 'border-rose-400 bg-rose-50 text-rose-900'
                             : 'border-slate-300 bg-white text-slate-900'
@@ -1379,14 +1386,14 @@ export const WiringVerificationTab: React.FC = () => {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                         {tr('Calibre / Sección del Conductor:', 'Conductor Gauge / Section:', 'Bitola / Seção do Condutor:')}
                       </label>
                       <select
                         value={c.cableGauge}
                         onChange={e => handleUpdateCircuit(c.id, { cableGauge: e.target.value as WiringCircuitItem['cableGauge'] })}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-900"
+                        className="w-full min-w-0 truncate rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-900"
                       >
                         {Object.entries(GAUGE_INFO).map(([k, info]) => (
                           <option key={k} value={k}>
@@ -1396,14 +1403,14 @@ export const WiringVerificationTab: React.FC = () => {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                         {tr('Canalización / Protección Mecánica:', 'Conduit / Raceway:', 'Eletroduto / Canalização:')}
                       </label>
                       <select
                         value={c.conduitType}
                         onChange={e => handleUpdateCircuit(c.id, { conduitType: e.target.value as WiringCircuitItem['conduitType'] })}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800"
+                        className="w-full min-w-0 truncate rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800"
                       >
                         <option value="PVC_P_EMPOTRADO">{tr('Tubería PVC-P Empotrada', 'Embedded PVC-P Conduit', 'Eletroduto PVC Embutido')}</option>
                         <option value="EMT_METALICO">{tr('Tubería Metálica EMT', 'Metallic EMT Conduit', 'Eletroduto Metálico EMT')}</option>
@@ -1415,18 +1422,18 @@ export const WiringVerificationTab: React.FC = () => {
                   </div>
 
                   {/* Column 2: Colores de Cada Cable (Fase, Neutro, Tierra) */}
-                  <div className="bg-white rounded-xl p-3.5 border border-slate-200/90 space-y-2.5">
-                    <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center justify-between">
-                      <span>{tr('B. Color de Cada Cable', 'B. Wire Colors (L / N / PE)', 'B. Cor de Cada Cabo')}</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">CNE 030-036</span>
+                  <div className="min-w-0 bg-white rounded-xl p-3.5 border border-slate-200/90 space-y-2.5 overflow-hidden">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center justify-between gap-2">
+                      <span className="truncate">{tr('B. Color de Cada Cable', 'B. Wire Colors (L / N / PE)', 'B. Cor de Cada Cabo')}</span>
+                      <span className="text-[10px] text-slate-500 font-semibold shrink-0 whitespace-nowrap">CNE 030-036</span>
                     </div>
 
                     {/* Fase Color */}
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                         {tr('Color Cable de FASE (L):', 'PHASE Wire Color (L):', 'Cor do Cabo de FASE (L):')}
                       </label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <span
                           className="w-5 h-5 rounded-full shrink-0 border shadow-2xs"
                           style={{ background: phaseSwatch.bg, borderColor: phaseSwatch.border }}
@@ -1434,7 +1441,7 @@ export const WiringVerificationTab: React.FC = () => {
                         <select
                           value={c.phaseColor}
                           onChange={e => handleUpdateCircuit(c.id, { phaseColor: e.target.value as WiringCircuitItem['phaseColor'] })}
-                          className="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-900"
+                          className="flex-1 w-full min-w-0 truncate rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-900"
                         >
                           <option value="ROJO">{tr('🔴 Rojo (Fase L1 CNE)', '🔴 Red (Phase L1)', '🔴 Vermelho (Fase L1)')}</option>
                           <option value="NEGRO">{tr('⚫ Negro (Fase L2 CNE)', '⚫ Black (Phase L2)', '⚫ Preto (Fase L2)')}</option>
@@ -1448,11 +1455,11 @@ export const WiringVerificationTab: React.FC = () => {
                     </div>
 
                     {/* Neutro Color */}
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                         {tr('Color Cable NEUTRO (N):', 'NEUTRAL Wire Color (N):', 'Cor do Cabo NEUTRO (N):')}
                       </label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <span
                           className="w-5 h-5 rounded-full shrink-0 border shadow-2xs"
                           style={{ background: neutralSwatch.bg, borderColor: neutralSwatch.border }}
@@ -1460,7 +1467,7 @@ export const WiringVerificationTab: React.FC = () => {
                         <select
                           value={c.neutralColor}
                           onChange={e => handleUpdateCircuit(c.id, { neutralColor: e.target.value as WiringCircuitItem['neutralColor'] })}
-                          className="flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-900"
+                          className="flex-1 w-full min-w-0 truncate rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-900"
                         >
                           <option value="BLANCO">{tr('⚪ Blanco (Neutro Oficial CNE)', '⚪ White (Official Neutral)', '⚪ Branco (Neutro CNE)')}</option>
                           <option value="GRIS">{tr('🔘 Gris Natural (Neutro CNE)', '🔘 Natural Gray (Neutral)', '🔘 Cinza Natural (Neutro)')}</option>
@@ -1473,11 +1480,11 @@ export const WiringVerificationTab: React.FC = () => {
                     </div>
 
                     {/* Tierra Color */}
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                         {tr('Color Cable de TIERRA (PE):', 'GROUND Wire Color (PE):', 'Cor do Cabo de TERRA (PE):')}
                       </label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <span
                           className="w-5 h-5 rounded-full shrink-0 border shadow-2xs"
                           style={{ background: groundSwatch.bg, borderColor: groundSwatch.border }}
@@ -1485,7 +1492,7 @@ export const WiringVerificationTab: React.FC = () => {
                         <select
                           value={c.groundColor}
                           onChange={e => handleUpdateCircuit(c.id, { groundColor: e.target.value as WiringCircuitItem['groundColor'] })}
-                          className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                          className={`flex-1 w-full min-w-0 truncate rounded-lg border px-2 py-1.5 text-xs font-bold ${
                             c.groundColor === 'SIN_TIERRA'
                               ? 'border-rose-400 bg-rose-50 text-rose-900'
                               : 'border-slate-300 bg-white text-slate-900'
@@ -1502,10 +1509,10 @@ export const WiringVerificationTab: React.FC = () => {
                   </div>
 
                   {/* Column 3: Corriente Medida, Temperatura y Estado de Empalmes */}
-                  <div className="bg-white rounded-xl p-3.5 border border-slate-200/90 space-y-2.5">
-                    <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center justify-between">
-                      <span>{tr('C. Corriente Real y Estado', 'C. Measured Current & State', 'C. Corrente Medida e Estado')}</span>
-                      <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                  <div className="min-w-0 bg-white rounded-xl p-3.5 border border-slate-200/90 space-y-2.5 overflow-hidden">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center justify-between gap-2">
+                      <span className="truncate">{tr('C. Corriente Real y Estado', 'C. Measured Current & State', 'C. Corrente Medida e Estado')}</span>
+                      <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0 whitespace-nowrap ${
                         c.utilizationPct > 100 ? 'bg-rose-100 text-rose-800' : c.utilizationPct > 80 ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-800'
                       }`}>
                         Uso: {c.utilizationPct}%
@@ -1513,66 +1520,66 @@ export const WiringVerificationTab: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                      <div className="min-w-0">
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                           {tr('Corriente Medida (A):', 'Measured Current (A):', 'Corrente Medida (A):')}
                         </label>
-                        <div className="relative">
+                        <div className="relative min-w-0">
                           <input
                             type="number"
                             step="0.1"
                             min="0"
                             value={c.measuredCurrentA}
                             onChange={e => handleUpdateCircuit(c.id, { measuredCurrentA: Math.max(0, parseFloat(e.target.value) || 0) })}
-                            className="w-full rounded-lg border border-indigo-300 bg-indigo-50/40 px-2.5 py-1.5 text-xs font-mono font-black text-slate-900 focus:border-indigo-600 focus:outline-none"
+                            className="w-full min-w-0 rounded-lg border border-indigo-300 bg-indigo-50/40 pl-2.5 pr-6 py-1.5 text-xs font-mono font-black text-slate-900 focus:border-indigo-600 focus:outline-none"
                           />
-                          <span className="absolute right-2 top-1.5 text-[10px] font-bold text-indigo-700">A</span>
+                          <span className="absolute right-2 top-1.5 text-[10px] font-bold text-indigo-700 pointer-events-none">A</span>
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                      <div className="min-w-0">
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                           {tr('Distancia (metros):', 'Length (meters):', 'Distância (metros):')}
                         </label>
-                        <div className="relative">
+                        <div className="relative min-w-0">
                           <input
                             type="number"
                             step="1"
                             min="1"
                             value={c.lengthMeters}
                             onChange={e => handleUpdateCircuit(c.id, { lengthMeters: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900"
+                            className="w-full min-w-0 rounded-lg border border-slate-300 bg-white pl-2.5 pr-6 py-1.5 text-xs font-mono font-bold text-slate-900"
                           />
-                          <span className="absolute right-2 top-1.5 text-[10px] font-bold text-slate-400">m</span>
+                          <span className="absolute right-2 top-1.5 text-[10px] font-bold text-slate-400 pointer-events-none">m</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                      <div className="min-w-0">
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                           {tr('Temp. Cable/Bornera:', 'Wire Temp (°C):', 'Temp. Cabo (°C):')}
                         </label>
-                        <div className="relative">
+                        <div className="relative min-w-0">
                           <input
                             type="number"
                             min="15"
                             max="120"
                             value={c.temperatureC}
                             onChange={e => handleUpdateCircuit(c.id, { temperatureC: parseInt(e.target.value, 10) || 30 })}
-                            className={`w-full rounded-lg border px-2.5 py-1.5 text-xs font-mono font-bold ${
+                            className={`w-full min-w-0 rounded-lg border pl-2.5 pr-7 py-1.5 text-xs font-mono font-bold ${
                               c.temperatureC >= 55 ? 'border-rose-400 bg-rose-50 text-rose-900' : 'border-slate-300 bg-white text-slate-900'
                             }`}
                           />
-                          <span className="absolute right-2 top-1.5 text-[10px] font-bold text-slate-500">°C</span>
+                          <span className="absolute right-2 top-1.5 text-[10px] font-bold text-slate-500 pointer-events-none">°C</span>
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                      <div className="min-w-0">
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                           {tr('Caída Tensión:', 'Voltage Drop:', 'Queda Tensão:')}
                         </label>
-                        <div className={`rounded-lg border px-2.5 py-1.5 text-xs font-mono font-bold ${
+                        <div className={`rounded-lg border px-2.5 py-1.5 text-xs font-mono font-bold truncate ${
                           c.voltageDropPct > 2.5 ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-100 text-slate-800'
                         }`}>
                           {c.voltageDropPct.toFixed(2)} %
@@ -1580,14 +1587,14 @@ export const WiringVerificationTab: React.FC = () => {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                         {tr('Estado de Empalmes y Conexiones:', 'Splices & Connections Condition:', 'Estado das Emendas e Conexões:')}
                       </label>
                       <select
                         value={c.spliceCondition}
                         onChange={e => handleUpdateCircuit(c.id, { spliceCondition: e.target.value as WiringCircuitItem['spliceCondition'] })}
-                        className={`w-full rounded-lg border px-2.5 py-1.5 text-xs font-bold ${
+                        className={`w-full min-w-0 truncate rounded-lg border px-2.5 py-1.5 text-xs font-bold ${
                           c.spliceCondition === 'CRITICO_RECALENTADO'
                             ? 'border-rose-400 bg-rose-50 text-rose-900'
                             : 'border-slate-300 bg-white text-slate-900'
@@ -1601,23 +1608,23 @@ export const WiringVerificationTab: React.FC = () => {
                   </div>
 
                   {/* Column 4: Llave Termomagnética, Llave Diferencial y Otras Llaves del Circuito */}
-                  <div className="bg-white rounded-xl p-3.5 border border-slate-200/90 space-y-2.5">
-                    <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center justify-between">
-                      <span>{tr('D. Llaves del Circuito', 'D. Circuit Breakers & RCD', 'D. Disjuntores do Circuito')}</span>
-                      <span className="text-[10px] font-mono bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold">
+                  <div className="min-w-0 bg-white rounded-xl p-3.5 border border-slate-200/90 space-y-2.5 overflow-hidden">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center justify-between gap-2">
+                      <span className="truncate">{tr('D. Llaves del Circuito', 'D. Circuit Breakers & RCD', 'D. Disjuntores do Circuito')}</span>
+                      <span className="text-[10px] font-mono bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold shrink-0 whitespace-nowrap">
                         {c.breakerAmps > 0 ? `ITM ${c.breakerAmps}A` : 'Riesgo'}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-3 gap-1.5">
-                      <div className="col-span-2">
-                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                      <div className="col-span-2 min-w-0">
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                           {tr('Llave Termomagnética:', 'Circuit Breaker (ITM):', 'Disjuntor Termomagnético:')}
                         </label>
                         <select
                           value={c.breakerAmps}
                           onChange={e => handleUpdateCircuit(c.id, { breakerAmps: Number(e.target.value) })}
-                          className={`w-full rounded-lg border px-2 py-1.5 text-xs font-black ${
+                          className={`w-full min-w-0 truncate rounded-lg border px-2 py-1.5 text-xs font-black ${
                             c.breakerAmps > c.maxCableAmps || c.breakerAmps <= 0
                               ? 'border-rose-400 bg-rose-50 text-rose-900'
                               : 'border-slate-300 bg-white text-slate-900'
@@ -1639,8 +1646,8 @@ export const WiringVerificationTab: React.FC = () => {
                         </select>
                       </div>
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                      <div className="min-w-0">
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                           {tr('Polos/Curva:', 'Poles/Curve:', 'Polos/Curva:')}
                         </label>
                         <select
@@ -1652,7 +1659,7 @@ export const WiringVerificationTab: React.FC = () => {
                               breakerCurve: curve as WiringCircuitItem['breakerCurve']
                             });
                           }}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs font-bold text-slate-900"
+                          className="w-full min-w-0 truncate rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs font-bold text-slate-900"
                         >
                           <option value="1P_C">1P - C</option>
                           <option value="2P_B">2P - B</option>
@@ -1664,14 +1671,14 @@ export const WiringVerificationTab: React.FC = () => {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                         {tr('Llave Diferencial Asociada (ID / RCD):', 'Associated Differential Switch (RCD):', 'Disjuntor Diferencial Associado (DR):')}
                       </label>
                       <select
                         value={c.rcdProtection}
                         onChange={e => handleUpdateCircuit(c.id, { rcdProtection: e.target.value as WiringCircuitItem['rcdProtection'] })}
-                        className={`w-full rounded-lg border px-2 py-1.5 text-xs font-bold ${
+                        className={`w-full min-w-0 truncate rounded-lg border px-2 py-1.5 text-xs font-bold ${
                           c.rcdProtection === 'SIN_DIFERENCIAL'
                             ? 'border-rose-400 bg-rose-50 text-rose-900'
                             : 'border-slate-300 bg-white text-slate-900'
@@ -1684,14 +1691,14 @@ export const WiringVerificationTab: React.FC = () => {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                    <div className="min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5 truncate">
                         {tr('Otras Llaves / Equipos en la Línea:', 'Other Switches / Controls on Line:', 'Outras Chaves / Proteções na Linha:')}
                       </label>
                       <select
                         value={c.otherSwitch}
                         onChange={e => handleUpdateCircuit(c.id, { otherSwitch: e.target.value as WiringCircuitItem['otherSwitch'] })}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800"
+                        className="w-full min-w-0 truncate rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800"
                       >
                         <option value="NINGUNA">{tr('Ninguna llave adicional', 'No additional switch', 'Nenhuma chave adicional')}</option>
                         <option value="GUARDAMOTOR_CONTACTOR">{tr('Guardamotor + Contactor Magnético', 'Motor Starter + Magnetic Contactor', 'Disjuntor Motor + Contator')}</option>

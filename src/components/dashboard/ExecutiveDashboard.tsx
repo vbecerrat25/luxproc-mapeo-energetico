@@ -94,23 +94,42 @@ export const ExecutiveDashboard: React.FC = () => {
   const totalAuditPoints = 6;
   const circuitsList = diagnostic?.circuits || [];
   const groundingList = diagnostic?.grounding || [];
-  const passedAuditPoints = [
-    groundingList[0]?.complianceStatus === 'ADECUADO',
-    !circuitsList.some(c => c.wireStatus === 'NO_ADECUADO'),
-    !circuitsList.some(c => c.breakerStatus === 'NO_ADECUADO'),
-    !circuitsList.some(c => !c.rcdExistingA || c.rcdStatus === 'NO_ADECUADO'),
-    !circuitsList.some(c => c.voltageDropStatus === 'NO_ADECUADO'),
-    (receiptsStats?.averagePowerFactor || 0) >= 0.96
-  ].filter(Boolean).length;
+  const receiptsListCount = (diagnostic?.receipts || []).length;
+  const equipmentListCount = (computedEquipment || []).length;
+  const hasAnyWorkspaceData =
+    circuitsList.length > 0 ||
+    groundingList.length > 0 ||
+    receiptsListCount > 0 ||
+    equipmentListCount > 0 ||
+    (diagnostic?.lighting || []).length > 0 ||
+    Boolean(diagnostic?.generalData?.companyName?.trim()) ||
+    Boolean(diagnostic?.generalData?.clientName?.trim());
+
+  const currentPf = receiptsListCount > 0
+    ? (receiptsStats?.averagePowerFactor || 0)
+    : (diagnostic?.powerFactor?.currentPowerFactor || 0);
+
+  const passedAuditPoints = !hasAnyWorkspaceData
+    ? 0
+    : [
+        groundingList.length > 0 && groundingList[0]?.complianceStatus === 'ADECUADO',
+        circuitsList.length > 0 && !circuitsList.some(c => c.wireStatus === 'NO_ADECUADO'),
+        circuitsList.length > 0 && !circuitsList.some(c => c.breakerStatus === 'NO_ADECUADO'),
+        circuitsList.length > 0 && !circuitsList.some(c => !c.rcdExistingA || c.rcdStatus === 'NO_ADECUADO'),
+        circuitsList.length > 0 && !circuitsList.some(c => c.voltageDropStatus === 'NO_ADECUADO'),
+        currentPf >= 0.96
+      ].filter(Boolean).length;
   const auditProgressPct = Math.round((passedAuditPoints / totalAuditPoints) * 100);
 
-  const criticalObservationsCount = [
-    groundingList[0]?.complianceStatus === 'NO_ADECUADO',
-    circuitsList.some(c => c.wireStatus === 'NO_ADECUADO'),
-    circuitsList.some(c => c.breakerStatus === 'NO_ADECUADO'),
-    circuitsList.some(c => !c.rcdExistingA),
-    (receiptsStats?.averagePowerFactor || 1) < 0.96
-  ].filter(Boolean).length;
+  const criticalObservationsCount = !hasAnyWorkspaceData
+    ? 0
+    : [
+        groundingList[0]?.complianceStatus === 'NO_ADECUADO',
+        circuitsList.some(c => c.wireStatus === 'NO_ADECUADO'),
+        circuitsList.some(c => c.breakerStatus === 'NO_ADECUADO'),
+        circuitsList.some(c => !c.rcdExistingA),
+        currentPf > 0 && currentPf < 0.96
+      ].filter(Boolean).length;
 
   const getInstallationLabel = (type?: string) => {
     switch ((type || '').toLowerCase()) {
@@ -143,42 +162,42 @@ export const ExecutiveDashboard: React.FC = () => {
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
       
       {/* Workspace Management & Clean Platform Banner */}
-      <div className="bg-white rounded-2xl sm:rounded-[28px] p-4 sm:p-5 border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
+      <div className="bg-white rounded-2xl sm:rounded-[28px] p-4 sm:p-5 border border-slate-200/90 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
           <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0">
-            <RotateCcw className="w-6 h-6" />
+            <RotateCcw className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-sm font-black text-slate-900">
                 {t('dash.clean_banner_title', 'Espacio de Trabajo & Gestión de Proyectos')}
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
                 {savedProjects.length}/2 {rt('trabajos guardados', 'saved projects', 'projetos salvos')}
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5 max-w-xl">
+            <p className="text-xs text-slate-500 mt-0.5 max-w-xl leading-relaxed">
               {t('dash.clean_banner_desc', 'Inicie un peritaje desde cero o limpie los datos previamente guardados en la plataforma con un solo clic.')}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 w-full lg:w-auto">
           <button
             type="button"
             onClick={() => setActiveTab('saved')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap"
           >
-            <FolderCheck className="w-3.5 h-3.5 text-indigo-600" />
+            <FolderCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
             <span>{t('nav.saved_projects', 'Trabajos Realizados')} ({savedProjects.length}/2)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setShowCleanModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-slate-950 text-xs font-black transition-all cursor-pointer shadow-sm"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-slate-950 text-xs font-black transition-all cursor-pointer shadow-sm whitespace-nowrap"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3.5 h-3.5 shrink-0" />
             <span>{t('dash.clean_banner_action', 'Limpiar Plataforma Ahora')}</span>
           </button>
         </div>
@@ -188,7 +207,7 @@ export const ExecutiveDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
         
         {/* Main Hero Bento Card (Col 8) */}
-        <div className="md:col-span-8 bg-white rounded-2xl sm:rounded-[32px] p-5 sm:p-7 shadow-sm border border-slate-100 flex flex-col justify-between relative overflow-hidden">
+        <div className="md:col-span-8 bg-white rounded-2xl sm:rounded-[32px] p-4 sm:p-7 shadow-sm border border-slate-100 flex flex-col justify-between relative overflow-hidden">
           <div className="relative z-10">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
@@ -198,30 +217,34 @@ export const ExecutiveDashboard: React.FC = () => {
                 {rt('Cód', 'Code', 'Cód')}: {diagnostic.generalData.diagnosticCode || 'E-2026'}
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-tight">
-              {diagnostic.generalData.companyName || diagnostic.generalData.clientName || rt('Auditoría Energética & Eléctrica', 'Electrical & Energy Audit', 'Auditoria Energética & Elétrica')}
+            <h2 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-tight break-words">
+              {diagnostic.generalData.companyName || diagnostic.generalData.clientName || rt('Proyecto en Blanco (Sin Datos Cargados)', 'Blank Project (No Data Loaded)', 'Projeto em Branco (Sem Dados)')}
             </h2>
             <p className="text-slate-500 font-medium text-xs mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
-              <span>📍 {diagnostic.generalData.district || diagnostic.generalData.city}, {diagnostic.generalData.department}</span>
+              <span>
+                📍 {(diagnostic.generalData.district || diagnostic.generalData.city || diagnostic.generalData.department)
+                  ? [diagnostic.generalData.district || diagnostic.generalData.city, diagnostic.generalData.department].filter(Boolean).join(', ')
+                  : rt('Ubicación por definir', 'Location to be defined', 'Localização a definir')}
+              </span>
               <span>⚡ {diagnostic.tariff.supplyVoltage}V ({diagnostic.tariff.phases === 'TRIFASICO' ? rt('Trifásico 3Ø', 'Three-Phase 3Ø', 'Trifásico 3Ø') : rt('Monofásico 1Ø', 'Single-Phase 1Ø', 'Monofásico 1Ø')})</span>
               <span>🏢 {rt('Tarifa', 'Tariff', 'Tarifa')} {diagnostic.tariff.tariffCode}</span>
             </p>
           </div>
 
           <div className="relative z-10 mt-5 pt-4 sm:pt-5 border-t border-slate-100/80 flex flex-wrap items-center justify-between gap-4 sm:gap-6">
-            <div className="flex items-center gap-4 sm:gap-8">
+            <div className="grid grid-cols-3 gap-3 sm:flex sm:items-center sm:gap-8 w-full sm:w-auto">
               <div>
-                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">{rt('Cumplimiento CNE', 'Code Compliance', 'Conformidade CNE')}</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-800 font-sans">{auditProgressPct}%</p>
+                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider truncate">{rt('Cumplimiento CNE', 'Code Compliance', 'Conformidade CNE')}</p>
+                <p className="text-lg sm:text-2xl font-bold text-slate-800 font-sans">{auditProgressPct}%</p>
               </div>
               <div>
-                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">{rt('Demanda Máx', 'Max Demand', 'Demanda Máx')}</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-800 font-sans">{(demandBalance?.maximumDemandKw ?? 0).toFixed(1)} <span className="text-sm font-normal text-slate-400">kW</span></p>
+                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider truncate">{rt('Demanda Máx', 'Max Demand', 'Demanda Máx')}</p>
+                <p className="text-lg sm:text-2xl font-bold text-slate-800 font-sans">{(demandBalance?.maximumDemandKw ?? 0).toFixed(1)} <span className="text-xs sm:text-sm font-normal text-slate-400">kW</span></p>
               </div>
-              <div className="block">
-                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">{rt('Factor Potencia', 'Power Factor', 'Fator Potência')}</p>
-                <p className={`text-xl sm:text-2xl font-bold font-sans ${(receiptsStats?.averagePowerFactor ?? 0.85) < 0.96 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                  {(receiptsStats?.averagePowerFactor ?? 0.85).toFixed(2)}
+              <div>
+                <p className="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider truncate">{rt('Factor Potencia', 'Power Factor', 'Fator Potência')}</p>
+                <p className={`text-lg sm:text-2xl font-bold font-sans ${currentPf === 0 ? 'text-slate-400' : currentPf < 0.96 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {currentPf.toFixed(2)}
                 </p>
               </div>
             </div>
@@ -229,7 +252,7 @@ export const ExecutiveDashboard: React.FC = () => {
             <div className="w-full sm:w-auto sm:flex-grow sm:max-w-xs bg-slate-100 h-2.5 rounded-full overflow-hidden">
               <div 
                 className="bg-indigo-600 h-full rounded-full transition-all duration-500" 
-                style={{ width: `${Math.max(auditProgressPct, 15)}%` }}
+                style={{ width: `${auditProgressPct}%` }}
               ></div>
             </div>
 
@@ -237,7 +260,7 @@ export const ExecutiveDashboard: React.FC = () => {
               onClick={() => setActiveTab('report')}
               className="w-full sm:w-auto bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <FileBadge className="h-3.5 w-3.5 text-amber-400" />
+              <FileBadge className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               <span>{rt('Ver Dictamen CIP', 'View CIP Report', 'Ver Parecer CIP')}</span>
             </button>
           </div>
@@ -248,18 +271,18 @@ export const ExecutiveDashboard: React.FC = () => {
 
         {/* Slate-900 Dark Bento Card (Col 4) */}
         <div className="md:col-span-4 bg-slate-900 rounded-2xl sm:rounded-[32px] p-5 sm:p-6 shadow-xl flex flex-col justify-between text-white relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div className="p-3 bg-white/10 rounded-2xl text-emerald-400">
+          <div className="flex justify-between items-start gap-2">
+            <div className="p-3 bg-white/10 rounded-2xl text-emerald-400 shrink-0">
               <TrendingUp className="w-6 h-6" />
             </div>
-            <span className="text-emerald-400 text-xs font-bold bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+            <span className="text-emerald-400 text-xs font-bold bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full whitespace-nowrap">
               S/. {((totalAnnualSavingsSoles || 0) / 12).toFixed(0)}/{rt('mes ahorro', 'mo. savings', 'mês economia')}
             </span>
           </div>
 
           <div className="my-4">
             <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">{rt('Ahorro Anual Identificado', 'Identified Annual Savings', 'Economia Anual Identificada')}</p>
-            <p className="text-3xl font-bold tracking-tight mt-1 text-white font-sans">
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 text-white font-sans">
               S/. {totalAnnualSavingsSoles.toLocaleString(language === 'en' ? 'en-US' : language === 'pt' ? 'pt-BR' : 'es-PE', { maximumFractionDigits: 0 })}
             </p>
             <p className="text-slate-400 text-xs mt-1">
@@ -269,7 +292,7 @@ export const ExecutiveDashboard: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('opportunities')}
-            className="w-full bg-white/10 hover:bg-white/20 text-white rounded-xl py-2 px-3 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
+            className="w-full bg-white/10 hover:bg-white/20 text-white rounded-xl py-2.5 px-3 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
           >
             <span>{rt('Explorar Plan de Ahorro', 'Explore Savings Plan', 'Explorar Plano de Economia')}</span>
             <ArrowRight size={14} />
@@ -279,14 +302,14 @@ export const ExecutiveDashboard: React.FC = () => {
       </div>
 
       {/* 2. Bento Grid Secondary Level */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
         
         {/* Amber Alert Bento Card (Col 4) */}
-        <div className="md:col-span-4 bg-amber-50 rounded-[32px] p-6 flex flex-col justify-between border border-amber-200/80 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></div>
-              <p className="font-bold text-amber-900 text-sm">
+        <div className="md:col-span-4 bg-amber-50 rounded-2xl sm:rounded-[32px] p-5 sm:p-6 flex flex-col justify-between border border-amber-200/80 shadow-xs">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${criticalObservationsCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+              <p className="font-bold text-amber-900 text-sm truncate">
                 {criticalObservationsCount === 0
                   ? rt('Sin Riesgos Críticos', 'No Critical Risks', 'Sem Riscos Críticos')
                   : `${criticalObservationsCount} ${rt('Observaciones Críticas', 'Critical Observations', 'Observações Críticas')}`}
@@ -294,7 +317,7 @@ export const ExecutiveDashboard: React.FC = () => {
             </div>
             <span 
               onClick={() => setActiveTab('circuits')}
-              className="text-amber-700 text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:underline"
+              className="text-amber-700 text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:underline shrink-0"
             >
               {rt('Auditar', 'Audit', 'Auditar')}
             </span>
@@ -306,9 +329,9 @@ export const ExecutiveDashboard: React.FC = () => {
                 • {rt(`Puesta a tierra supera 25Ω (${diagnostic.grounding[0].measuredResistanceOhm || 0}Ω)`, `Grounding exceeds 25Ω (${diagnostic.grounding[0].measuredResistanceOhm || 0}Ω)`, `Aterramento excede 25Ω (${diagnostic.grounding[0].measuredResistanceOhm || 0}Ω)`)}
               </p>
             )}
-            {(receiptsStats?.averagePowerFactor ?? 0.85) < 0.96 && (
+            {currentPf > 0 && currentPf < 0.96 && (
               <p className="truncate">
-                • {rt(`Factor de Potencia con penalidad (cosφ ${(receiptsStats?.averagePowerFactor ?? 0.85).toFixed(2)})`, `Power Factor with penalty (cosφ ${(receiptsStats?.averagePowerFactor ?? 0.85).toFixed(2)})`, `Fator de Potência com penalidade (cosφ ${(receiptsStats?.averagePowerFactor ?? 0.85).toFixed(2)})`)}
+                • {rt(`Factor de Potencia con penalidad (cosφ ${currentPf.toFixed(2)})`, `Power Factor with penalty (cosφ ${currentPf.toFixed(2)})`, `Fator de Potência com penalidade (cosφ ${currentPf.toFixed(2)})`)}
               </p>
             )}
             {diagnostic.circuits.some(c => !c.rcdExistingA) && (
@@ -318,51 +341,54 @@ export const ExecutiveDashboard: React.FC = () => {
             )}
             {criticalObservationsCount === 0 && (
               <p className="text-slate-600">
-                {rt('Instalación con protecciones y puesta a tierra conformes al CNE.', 'Installation protections and grounding compliant with electrical code.', 'Instalação com proteções e aterramento em conformidade com o CNE.')}
+                {hasAnyWorkspaceData
+                  ? rt('Instalación con protecciones y puesta a tierra conformes al CNE.', 'Installation protections and grounding compliant with electrical code.', 'Instalação com proteções e aterramento em conformidade com o CNE.')
+                  : rt('Plataforma limpia en blanco. Ingrese cargas, tableros o recibos para iniciar la evaluación.', 'Clean blank platform. Enter loads, panels, or utility bills to start the evaluation.', 'Plataforma limpa em branco. Insira cargas, quadros ou faturas para iniciar a avaliação.')}
               </p>
             )}
           </div>
 
           <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-[11px] font-bold text-amber-800">
-            <span>{rt('Prioridad Alta', 'High Priority', 'Prioridade Alta')}</span>
+            <span>{criticalObservationsCount > 0 ? rt('Prioridad Alta', 'High Priority', 'Prioridade Alta') : rt('En Espera de Datos', 'Awaiting Data', 'Aguardando Dados')}</span>
             <span>{rt('Norma CNE 060-010', 'Standard CNE 060-010', 'Norma CNE 060-010')}</span>
           </div>
         </div>
 
         {/* Indigo Cloud / PV Capacity Bento Card (Col 5) */}
-        <div className="md:col-span-5 bg-indigo-600 rounded-[32px] p-6 text-white relative overflow-hidden flex flex-col justify-between shadow-sm">
+        <div className="md:col-span-5 bg-indigo-600 rounded-2xl sm:rounded-[32px] p-5 sm:p-6 text-white relative overflow-hidden flex flex-col justify-between shadow-sm">
           <div className="relative z-10">
             <div className="flex items-center justify-between">
               <span className="bg-white/20 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
                 {rt('Generación & Solar', 'Solar & Generation', 'Geração & Solar')}
               </span>
-              <SunMedium className="h-5 w-5 text-amber-300" />
+              <SunMedium className="h-5 w-5 text-amber-300 shrink-0" />
             </div>
-            <h3 className="text-xl font-bold mt-2">{rt('Potencial Fotovoltaico', 'Photovoltaic Potential', 'Potencial Fotovoltaico')}</h3>
+            <h3 className="text-lg sm:text-xl font-bold mt-2">{rt('Potencial Fotovoltaico', 'Photovoltaic Potential', 'Potencial Fotovoltaico')}</h3>
             <p className="text-indigo-100 text-xs mt-0.5">
-              {diagnostic.solar
+              {diagnostic.solar && diagnostic.solar.scenarioKwp > 0
                 ? rt(
-                    `Sistema propuesto de ${diagnostic.solar.scenarioKwp} kWp con inversor ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 15} kW trifásico`,
-                    `Proposed ${diagnostic.solar.scenarioKwp} kWp system with ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 15} kW three-phase inverter`,
-                    `Sistema proposto de ${diagnostic.solar.scenarioKwp} kWp com inversor ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 15} kW trifásico`
+                    `Sistema propuesto de ${diagnostic.solar.scenarioKwp} kWp con inversor ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 0} kW`,
+                    `Proposed ${diagnostic.solar.scenarioKwp} kWp system with ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 0} kW inverter`,
+                    `Sistema proposto de ${diagnostic.solar.scenarioKwp} kWp com inversor ${diagnostic.solar.inverterPowerKw || Math.round(diagnostic.solar.scenarioKwp * 0.95) || 0} kW`
                   )
-                : rt('Evaluación solar para autogeneración limpia', 'Solar evaluation for clean self-generation', 'Avaliação solar para autogeração limpa')}
+                : rt('Sin sistema solar dimensionado (0 kWp). Configure en el módulo Solar.', 'No solar system sized (0 kWp). Configure in the Solar module.', 'Sem sistema solar dimensionado (0 kWp). Configure no módulo Solar.')}
             </p>
           </div>
 
           <div className="mt-4 relative z-10">
             <div className="flex justify-between mb-1.5 text-xs font-bold uppercase">
               <span>
-                {diagnostic.solar
-                  ? `${diagnostic.solar.scenarioKwp} kWp ${rt('instalado', 'installed', 'instalado')}`
-                  : `3.3 kWp ${rt('sugerido', 'suggested', 'sugerido')}`}
+                {diagnostic.solar?.scenarioKwp || 0} kWp {rt('proyectado', 'projected', 'projetado')}
               </span>
               <span onClick={() => setActiveTab('solar')} className="cursor-pointer underline">
                 {rt('Ver Retorno', 'View ROI', 'Ver Retorno')}
               </span>
             </div>
             <div className="h-2 bg-indigo-950/40 rounded-full overflow-hidden">
-              <div className="bg-amber-300 h-full w-[70%]"></div>
+              <div 
+                className="bg-amber-300 h-full transition-all duration-500"
+                style={{ width: `${diagnostic.solar?.scenarioKwp && diagnostic.solar.scenarioKwp > 0 ? 70 : 0}%` }}
+              ></div>
             </div>
           </div>
 
@@ -370,25 +396,25 @@ export const ExecutiveDashboard: React.FC = () => {
         </div>
 
         {/* Emerald Team / Status Bento Card (Col 3) */}
-        <div className="md:col-span-3 bg-emerald-50 rounded-[32px] p-6 border border-emerald-100 flex flex-col justify-between shadow-xs">
+        <div className="md:col-span-3 bg-emerald-50 rounded-2xl sm:rounded-[32px] p-5 sm:p-6 border border-emerald-100 flex flex-col justify-between shadow-xs">
           <p className="text-emerald-900 font-bold text-sm">{rt('Estado de Índices', 'Index Status', 'Status dos Índices')}</p>
           <div className="space-y-2.5 my-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-emerald-900 font-medium">{rt('Seguridad Eléctrica', 'Electrical Safety', 'Segurança Elétrica')}</span>
-              <span className="text-[10px] font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-lg">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-emerald-900 font-medium truncate">{rt('Seguridad Eléctrica', 'Electrical Safety', 'Segurança Elétrica')}</span>
+              <span className="text-[10px] font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-lg shrink-0">
                 {safetyEvaluation.score}/100
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-emerald-900 font-medium">{rt('Eficiencia Energética', 'Energy Efficiency', 'Eficiência Energética')}</span>
-              <span className="text-[10px] font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-lg">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-emerald-900 font-medium truncate">{rt('Eficiencia Energética', 'Energy Efficiency', 'Eficiência Energética')}</span>
+              <span className="text-[10px] font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-lg shrink-0">
                 {efficiencyEvaluation.score}/100
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-emerald-900/70 font-medium">{rt('Pozo a Tierra', 'Grounding Pit', 'Poço de Terra')}</span>
-              <span className="text-[10px] font-bold bg-white text-slate-700 px-2 py-0.5 rounded-lg border border-slate-100">
-                {diagnostic.grounding[0]?.measuredResistanceOhm || diagnostic.grounding[0]?.calculatedTheoreticalResistanceOhm || 15} Ω
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-emerald-900/70 font-medium truncate">{rt('Pozo a Tierra', 'Grounding Pit', 'Poço de Terra')}</span>
+              <span className="text-[10px] font-bold bg-white text-slate-700 px-2 py-0.5 rounded-lg border border-slate-100 shrink-0">
+                {diagnostic.grounding[0]?.measuredResistanceOhm || diagnostic.grounding[0]?.calculatedTheoreticalResistanceOhm || 0} Ω
               </span>
             </div>
           </div>

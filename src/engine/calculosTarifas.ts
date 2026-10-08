@@ -44,6 +44,7 @@ export function evaluatePeruvianTariffs(
   customMaxDemandKw?: number
 ): TariffRecommendationResult {
   const { tariff, equipment, receipts, powerFactor } = diagnostic;
+  const hasRealData = (receipts && receipts.length > 0) || (equipment && equipment.length > 0);
 
   // 1. Determinar consumo mensual base (de censo o promedio de recibos)
   let totalMonthlyKwh = customTotalKwh || 0;
@@ -59,7 +60,7 @@ export function evaluatePeruvianTariffs(
         return acc + dailyKwh * (eq.daysPerWeek || 6) * 4.33;
       }, 0);
     } else {
-      totalMonthlyKwh = 1200; // default baseline
+      totalMonthlyKwh = 0; // En blanco cuando la plataforma está limpia
     }
   }
 
@@ -68,7 +69,7 @@ export function evaluatePeruvianTariffs(
   if (!maxDemandKw) {
     if (receipts && receipts.length > 0) {
       const maxInReceipts = Math.max(...receipts.map(r => r.maxDemandKw || r.billedPowerKw || 0));
-      maxDemandKw = maxInReceipts > 0 ? maxInReceipts : 15;
+      maxDemandKw = maxInReceipts > 0 ? maxInReceipts : 0;
     } else if (equipment && equipment.length > 0) {
       const totalInstalledKw = equipment.reduce((acc, eq) => {
         const w = eq.powerUnit === 'HP' ? eq.power * 746 : (eq.powerUnit === 'kW' ? eq.power * 1000 : eq.power);
@@ -76,7 +77,7 @@ export function evaluatePeruvianTariffs(
       }, 0);
       maxDemandKw = totalInstalledKw * 0.65; // Factor de simultaneidad estimado
     } else {
-      maxDemandKw = 10;
+      maxDemandKw = 0;
     }
   }
 
@@ -99,9 +100,9 @@ export function evaluatePeruvianTariffs(
   const reactivePenaltyUnit = tariff?.reactiveEnergyPenaltyPriceKvarh || 0.145;
 
   // Penalidad reactiva estimada mensual
-  const pf = powerFactor?.currentPowerFactor || 0.85;
+  const pf = powerFactor?.currentPowerFactor || 0;
   let reactivePenaltySoles = 0;
-  if (pf < 0.96) {
+  if (hasRealData && pf > 0 && pf < 0.96) {
     const tangentPhi = Math.tan(Math.acos(Math.min(0.99, Math.max(0.1, pf))));
     const tangentTarget = Math.tan(Math.acos(0.96)); // 0.2916
     const excessKvarh = Math.max(0, totalMonthlyKwh * (tangentPhi - tangentTarget));
